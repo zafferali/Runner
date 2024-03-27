@@ -9,11 +9,17 @@ import colors from '../constants/colors';
 const Tab = createBottomTabNavigator();
 
 function BottomTabNavigator() {
+
   return (
     <Tab.Navigator
       screenOptions={{
         tabBarShowLabel: false,
-        tabBarStyle: styles.menuContainer,
+        tabBarStyle: {
+          height: 70,
+          backgroundColor: '#FAFAFA',
+          borderTopWidth: 1,
+          borderTopColor: '#E0E0E0',
+        },
         headerShown: false,
       }}
     >

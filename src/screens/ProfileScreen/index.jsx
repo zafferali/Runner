@@ -3,7 +3,7 @@ import React from 'react'
 import Layout from 'common/Layout'
 import colors from 'constants/colors'
 import { GlobalStyles } from 'constants/GlobalStyles'
-import { useNavigation } from '@react-navigation/native'
+import AvailabilityToggle from 'common/AvailabilityToggle'
 
 const ProfileScreen = ({navigation}) => {
 
@@ -27,6 +27,10 @@ const ProfileScreen = ({navigation}) => {
         <Image source={require('images/logo-black.png')} style={styles.logo} />
         <Image source={{ uri: "https://www.gravatar.com/avatar/2c7d99fe281ecd3bcd65ab915bac6dd5?s=250" }} style={styles.userImage} />
         <Text style={styles.userName}>Raghav Handa</Text>
+        <TouchableOpacity style={[GlobalStyles.lightBorder, styles.availability]} onPress={handleLogoutPress}>
+          <Text style={styles.buttonText}>Availability Status</Text>
+          <AvailabilityToggle />
+        </TouchableOpacity>
         <View style={styles.buttonGroup}>
           <TouchableOpacity style={[styles.button, styles.topButton]} onPress={handleSettingsPress}>
             <Text style={styles.buttonText}>Settings</Text>
@@ -71,6 +75,11 @@ const styles = StyleSheet.create({
     color: 'black',
     marginBottom: 20,
     textAlign: 'center'
+  },
+  availability: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   buttonGroup: {
     borderRadius: 10,
