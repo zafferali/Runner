@@ -1,4 +1,5 @@
 import { PermissionsAndroid, Alert } from 'react-native'
+import messaging from '@react-native-firebase/messaging';
 
 export const requestCallPermission = async () => {
   try {
@@ -24,3 +25,19 @@ export const requestCallPermission = async () => {
     return false;
   }
 };
+
+export const requestNotificationPermission = async () => {
+  try {
+    const authorizationStatus = await messaging().hasPermission();
+    if (authorizationStatus === messaging.AuthorizationStatus.AUTHORIZED) {
+      console.log('Notification permissions are enabled');
+      return true;
+    } else {
+      console.log('Notification permissions are not enabled');
+      return false;
+    }
+  } catch (error) {
+    console.error('Failed to check notification permissions', error);
+    return false;
+  }
+}

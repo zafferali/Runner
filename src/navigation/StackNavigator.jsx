@@ -33,7 +33,6 @@ export const OrderListStackScreen = () => (
 export const ProfileStackScreen = () => (
     <ProfileStack.Navigator
         screenOptions={{
-            headerTitleStyle: styles.headerTitle,
             gestureEnabled: true, // Enable gesture navigation
             ...TransitionPresets.SlideFromRightIOS,
         }}
@@ -46,7 +45,7 @@ export const ProfileStackScreen = () => (
         <ProfileStack.Screen
             name="SettingsScreen"
             component={SettingsScreen}
-            options={{ title: 'Settings', headerTitleStyle: styles.headerSmallTitle }}
+            options={{ headerShown: false }}
         />
     </ProfileStack.Navigator>
 );

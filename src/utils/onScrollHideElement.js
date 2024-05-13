@@ -1,7 +1,7 @@
 import { useRef } from 'react';
 import { Animated } from 'react-native';
 import { useDispatch } from 'react-redux';
-import { setTabBarVisibility, setSearchBarVisibility } from '../redux/slices/visibility';
+import { setTabBarVisibility, setSearchBarVisibility } from '../redux/slices/visibilitySlice';
 
 const onScrollHideElement = () => {
   const dispatch = useDispatch();

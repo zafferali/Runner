@@ -5,6 +5,7 @@ import {AuthStackNavigator} from './navigation/AuthStackNavigator';
 import BottomTabNavigator from './navigation/BottomTabNavigator';
 // import { setCustomText } from 'react-native-global-props';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSelector } from 'react-redux';
 
 
 // const customTextProps = {
@@ -18,16 +19,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 // setCustomText(customTextProps);
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(true);
+  const isAuthenticated = useSelector(state => state.authentication.isAuthenticated)
 
   return (
     <>
-    <SafeAreaView style={{flex: 1}}>
-      {/* <StatusBar backgroundColor="transparent" translucent={true} /> */}
+     <StatusBar backgroundColor="transparent" translucent={true}/>
         <NavigationContainer>
           {isAuthenticated ? <BottomTabNavigator /> : <AuthStackNavigator />}
         </NavigationContainer>
-    </SafeAreaView>
     </>
   );
 }

@@ -14,22 +14,13 @@ function BottomTabNavigator() {
     <Tab.Navigator
       screenOptions={{
         tabBarShowLabel: false,
-        tabBarStyle: {
-          height: 70,
-          backgroundColor: '#FAFAFA',
-          borderTopWidth: 1,
-          borderTopColor: '#E0E0E0',
-        },
+        tabBarStyle: styles.menuContainer,
         headerShown: false,
       }}
     >
       {/* Orders */}
       <Tab.Screen name="OrderListStackScreen" component={OrderListStackScreen}
-        options={({ route }) => ({
-          // tabBarStyle: {
-          //   display: getFocusedRouteNameFromRoute(route) === 'OrderStatusScreen' ? 'none' : 'flex',
-          //   height: 80,
-          // },
+        options={() => ({
           tabBarIcon: ({ focused }) => (
             <View style={styles.menuItem}>
               <Image
@@ -43,14 +34,11 @@ function BottomTabNavigator() {
       />
 
       {/* Profile */}
-      <Tab.Screen name="ProfileStackScreen" component={ProfileStackScreen}
-        options={({ route }) => ({
+      <Tab.Screen name="Profile" component={ProfileStackScreen}
+        options={({ route}) => ({
           tabBarStyle: {
             display: getFocusedRouteNameFromRoute(route) === 'SettingsScreen' ? 'none' : 'flex',
             height: 70,
-            backgroundColor: '#FAFAFA',
-            borderTopWidth: 1,
-            borderTopColor: '#E0E0E0',
           },
           tabBarIcon: ({ focused }) => (
             <View style={styles.menuItem}>
@@ -58,7 +46,7 @@ function BottomTabNavigator() {
                 source={require('images/user-icon.png')}
                 resizeMode='contain'
                 style={[styles.menuIcon, { tintColor: focused ? colors.theme : colors.textLight }]} />
-              <Text style={[styles.menuText, { color: focused ? colors.theme : colors.textLight }]}>Orders</Text>
+              <Text style={[styles.menuText, { color: focused ? colors.theme : colors.textLight }]}>Profile</Text>
             </View>
           )
         })}
@@ -89,5 +77,6 @@ const styles = StyleSheet.create({
 });
 
 export default BottomTabNavigator;
+
 
 
