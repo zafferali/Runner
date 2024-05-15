@@ -1,8 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react'
-import { StyleSheet, Text, View, FlatList, ActivityIndicator, Alert, Modal } from 'react-native'
+import { StyleSheet, Text, View, FlatList, ActivityIndicator, Alert, Modal, TextInput, Image } from 'react-native'
 import firestore from '@react-native-firebase/firestore'
 import Layout from 'common/Layout'
-import SearchBar from 'common/SearchBar'
 import { GlobalStyles } from 'constants/GlobalStyles'
 import colors from 'constants/colors'
 import StatusToggle from '../../components/common/StatusToggle'
@@ -38,7 +37,9 @@ const mapUIStatusToFirebase = (uiStatus) => {
 
 const OrderListScreen = ({ navigation }) => {
   const [ordersData, setOrdersData] = useState([])
+  const [filteredOrders, setFilteredOrders] = useState([])
   const [loadingOrderId, setLoadingOrderId] = useState(null)
+  const [searchQuery, setSearchQuery] = useState('')
   const runnerId = useSelector(state => state.authentication.runnerId)
   const dispatch = useDispatch()
   const isLoading = useSelector(state => state.ui.loading)
@@ -55,12 +56,10 @@ const OrderListScreen = ({ navigation }) => {
       .where('runner', '==', runnerRef)
       .where('orderStatus', 'in', ['ready', 'picked', 'delivered'])
       .onSnapshot(async (querySnapshot) => {
-        dispatch(toggleLoading()) // Show loading indicator
+        // dispatch(toggleLoading()) // Show loading indicator
         const ordersList = []
         for (const doc of querySnapshot.docs) {
           const data = doc.data()
-          console.log('Order Data:', data)
-
           const restaurantDoc = data.restaurant ? await data.restaurant.get() : null
           const customerDoc = data.customer ? await data.customer.get() : null
           const lockerDoc = data.locker ? await data.locker.get() : null
@@ -76,11 +75,13 @@ const OrderListScreen = ({ navigation }) => {
             lockerName: lockerDoc?.data()?.lockerName,
           })
         }
+        ordersList.sort((a, b) => a.deliveryTime.localeCompare(b.deliveryTime))
         setOrdersData(ordersList)
-        dispatch(toggleLoading()) // Hide loading indicator
+        setFilteredOrders(ordersList)
+        // dispatch(toggleLoading()) 
       }, error => {
         console.error('Error fetching orders:', error)
-        dispatch(toggleLoading()) // Hide loading indicator
+        // dispatch(toggleLoading()) 
       })
 
     return () => unsubscribe()
@@ -94,8 +95,13 @@ const OrderListScreen = ({ navigation }) => {
         .collection('orders')
         .doc(orderId)
         .update({ orderStatus: newFirebaseStatus })
-      console.log('Order status updated successfully')
+    
       setOrdersData(prevState => 
+        prevState.map(order => 
+          order.id === orderId ? { ...order, orderStatus: newFirebaseStatus } : order
+        )
+      )
+      setFilteredOrders(prevState => 
         prevState.map(order => 
           order.id === orderId ? { ...order, orderStatus: newFirebaseStatus } : order
         )
@@ -138,9 +144,20 @@ const OrderListScreen = ({ navigation }) => {
     }
   }
 
-  const sortedOrders = ordersData.sort((a, b) => {
-    return new Date('1970/01/01 ' + a.deliveryTime) - new Date('1970/01/01 ' + b.deliveryTime)
-  })
+  const handleSearch = (query) => {
+    setSearchQuery(query)
+    if (query === '') {
+      setFilteredOrders(ordersData)
+    } else {
+      const lowerCaseQuery = query.toLowerCase()
+      const filtered = ordersData.filter(order => 
+        order.restaurantName.toLowerCase().includes(lowerCaseQuery) ||
+        order.orderNum.toString().includes(lowerCaseQuery) ||
+        order.customerName.toLowerCase().includes(lowerCaseQuery)
+      )
+      setFilteredOrders(filtered)
+    }
+  }
 
   const Order = ({ from, campus, locker, custName, orderNum, deliveryTime, orderStatus, id }) => (
     <View style={[GlobalStyles.lightBorder, { marginBottom: 10 }]}>
@@ -161,7 +178,7 @@ const OrderListScreen = ({ navigation }) => {
         </View>
       </View>
       <View style={styles.middleSection}>
-        <Text style={styles.lgText}>{custName}</Text>
+        <Text style={[styles.lgText, {textTransform: 'capitalize'}]}>{custName}</Text>
         <View>
           <Text style={styles.orderNum}>Order <Text style={{ color: colors.theme }} >#{orderNum}</Text></Text>
           <Text style={styles.mdText}>{deliveryTime}</Text>
@@ -186,10 +203,21 @@ const OrderListScreen = ({ navigation }) => {
 
   return (
     <Layout navigation={navigation} title='Live Orders'>
-      <SearchBar placeholder='Search Orders..' />
+      <View style={styles.searchBarContainer}> 
+        <Image
+          source={require('images/search.png')} // Replace with your search icon
+          style={styles.icon}
+        />
+        <TextInput
+        style={styles.searchBar}
+        placeholder='Search Orders..'
+        value={searchQuery}
+        onChangeText={handleSearch}
+        />
+      </View>
       <FlatList
         ref={flatListRef}
-        data={sortedOrders}
+        data={filteredOrders}
         renderItem={({ item }) =>
           <Order
             from={item.restaurantName} 
@@ -297,5 +325,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  searchBarContainer: {
+    position: 'relative'
+  },
+  searchBar: {
+    height: 40,
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingLeft: 30,
+    marginVertical: 10,
+  },
+  icon: {
+    width: 16,
+    height: 16,
+    position: 'absolute',
+    top:'35%',
+    left: '2%',
+    // bottom: '-60%'
   },
 })
