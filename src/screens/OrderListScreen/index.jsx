@@ -1,96 +1,149 @@
-import { StyleSheet, Text, View, FlatList} from 'react-native'
-import React from 'react'
+import React, { useEffect, useState, useRef } from 'react'
+import { StyleSheet, Text, View, FlatList, ActivityIndicator, Alert, Modal } from 'react-native'
+import firestore from '@react-native-firebase/firestore'
 import Layout from 'common/Layout'
 import SearchBar from 'common/SearchBar'
 import { GlobalStyles } from 'constants/GlobalStyles'
 import colors from 'constants/colors'
 import StatusToggle from '../../components/common/StatusToggle'
+import { useDispatch, useSelector } from 'react-redux'
+import { toggleLoading } from 'slices/uiSlice'
+import { makeCall } from 'utils/makeCall'
 
-const OrderListScreen = ({navigation}) => {
+const mapFirebaseStatusToUI = (firebaseStatus) => {
+  switch (firebaseStatus) {
+    case 'ready':
+      return 'On the way'
+    case 'picked':
+      return 'Picked'
+    case 'delivered':
+      return 'Delivered'
+    default:
+      return firebaseStatus
+  }
+}
 
-  const ordersData = [
-    {
-      id: 301,
-      from: 'Rajdhani Express',
-      to: 'IIT Delhi',
-      toLoc: 'Front Lobby',
-      custName: 'Abhinav Chikara',
-      orderNum: '301',
-      deliveryTime: '15:30'
-    },
-    
-    {
-      id: 302,
-      from: 'Shalimar',
-      to: 'Ascendas IT Park ',
-      toLoc: 'Back Lobby',
-      custName: 'Kashyap',
-      orderNum: '302',
-      deliveryTime: '14:30'
-    },
-    {
-      id: 303,
-      from: 'Jessie Burger corner',
-      to: 'IIT Delhi',
-      toLoc: 'Front Lobby',
-      custName: 'Sankit',
-      orderNum: '303',
-      deliveryTime: '12:30'
-    },
-    {
-      id: 304,
-      from: 'Rajdhani Express',
-      to: 'IIT Delhi',
-      toLoc: 'Front Lobby',
-      custName: 'Abhinav Chikara',
-      orderNum: '304',
-      deliveryTime: '18:30'
-    },
-    {
-      id: 305,
-      from: 'Rajdhani Express',
-      to: 'IIT Delhi',
-      toLoc: 'Front Lobby',
-      custName: 'Abhinav Chikara',
-      orderNum: '304',
-      deliveryTime: '18:30'
-    },
-    {
-      id: 306,
-      from: 'Rajdhani Express',
-      to: 'IIT Delhi',
-      toLoc: 'Front Lobby',
-      custName: 'Abhinav Chikara',
-      orderNum: '304',
-      deliveryTime: '18:30'
-    },
-    {
-      id: 307,
-      from: 'Rajdhani Express',
-      to: 'IIT Delhi',
-      toLoc: 'Front Lobby',
-      custName: 'Abhinav Chikara',
-      orderNum: '304',
-      deliveryTime: '18:30'
-    },
-    {
-      id: 308,
-      from: 'Rajdhani Express',
-      to: 'IIT Delhi',
-      toLoc: 'Front Lobby',
-      custName: 'Abhinav Chikara',
-      orderNum: '304',
-      deliveryTime: '18:30'
-    },
-  ];
+const mapUIStatusToFirebase = (uiStatus) => {
+  switch (uiStatus) {
+    case 'On the way':
+      return 'ready'
+    case 'Picked':
+      return 'picked'
+    case 'Delivered':
+      return 'delivered'
+    default:
+      return uiStatus
+  }
+}
+
+const OrderListScreen = ({ navigation }) => {
+  const [ordersData, setOrdersData] = useState([])
+  const [loadingOrderId, setLoadingOrderId] = useState(null)
+  const runnerId = useSelector(state => state.authentication.runnerId)
+  const dispatch = useDispatch()
+  const isLoading = useSelector(state => state.ui.loading)
+  const flatListRef = useRef(null)
+
+  useEffect(() => {
+    if (!runnerId) {
+      return
+    }
+    const runnerRef = firestore().doc(`runners/${runnerId}`)
+
+    const unsubscribe = firestore()
+      .collection('orders')
+      .where('runner', '==', runnerRef)
+      .where('orderStatus', 'in', ['ready', 'picked', 'delivered'])
+      .onSnapshot(async (querySnapshot) => {
+        dispatch(toggleLoading()) // Show loading indicator
+        const ordersList = []
+        for (const doc of querySnapshot.docs) {
+          const data = doc.data()
+          console.log('Order Data:', data)
+
+          const restaurantDoc = data.restaurant ? await data.restaurant.get() : null
+          const customerDoc = data.customer ? await data.customer.get() : null
+          const lockerDoc = data.locker ? await data.locker.get() : null
+          
+          ordersList.push({
+            id: doc.id,
+            orderNum: data?.orderNum,
+            orderStatus: data?.orderStatus,
+            deliveryTime: data?.deliveryTime,
+            restaurantName: restaurantDoc?.data()?.name,
+            customerName: customerDoc?.data()?.name,
+            campusName: lockerDoc?.data()?.campus,
+            lockerName: lockerDoc?.data()?.lockerName,
+          })
+        }
+        setOrdersData(ordersList)
+        dispatch(toggleLoading()) // Hide loading indicator
+      }, error => {
+        console.error('Error fetching orders:', error)
+        dispatch(toggleLoading()) // Hide loading indicator
+      })
+
+    return () => unsubscribe()
+  }, [runnerId, dispatch])
+
+  const updateOrderStatus = async (orderId, newUIStatus) => {
+    const newFirebaseStatus = mapUIStatusToFirebase(newUIStatus)
+    setLoadingOrderId(orderId)
+    try {
+      await firestore()
+        .collection('orders')
+        .doc(orderId)
+        .update({ orderStatus: newFirebaseStatus })
+      console.log('Order status updated successfully')
+      setOrdersData(prevState => 
+        prevState.map(order => 
+          order.id === orderId ? { ...order, orderStatus: newFirebaseStatus } : order
+        )
+      )
+    } catch (error) {
+      console.error('Error updating order status:', error)
+    } finally {
+      setLoadingOrderId(null)
+      const index = ordersData.findIndex(order => order.id === orderId)
+      if (flatListRef.current && index !== -1) {
+        flatListRef.current.scrollToIndex({ index, animated: true })
+      }
+    }
+  }
+
+  const handleStatusChange = (orderId, newUIStatus) => {
+    const currentOrder = ordersData.find(order => order.id === orderId)
+    const currentStatus = mapFirebaseStatusToUI(currentOrder.orderStatus)
+
+    if (newUIStatus === 'Delivered' && currentStatus !== 'Delivered') {
+      Alert.alert(
+        'Are you sure the food is delivered?',
+        'Upon confirmation, Customer will be informed to collect the food from the locker.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Yes', onPress: () => updateOrderStatus(orderId, newUIStatus) },
+        ]
+      )
+    } else if (currentStatus === 'Delivered' && newUIStatus !== 'Delivered') {
+      Alert.alert(
+        'Status cannot be changed',
+        'Please call Customer Care to change the status',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Call Customer Care', onPress: () => makeCall() },
+        ]
+      )
+    } else {
+      updateOrderStatus(orderId, newUIStatus)
+    }
+  }
 
   const sortedOrders = ordersData.sort((a, b) => {
-    return new Date('1970/01/01 ' + a.deliveryTime) - new Date('1970/01/01 ' + b.deliveryTime);
-  });
-  
+    return new Date('1970/01/01 ' + a.deliveryTime) - new Date('1970/01/01 ' + b.deliveryTime)
+  })
 
-  const Order = ({from, to, toLoc, custName, orderNum}) => (
-    <View style={[GlobalStyles.lightBorder, {marginBottom: 10}]}>
+  const Order = ({ from, campus, locker, custName, orderNum, deliveryTime, orderStatus, id }) => (
+    <View style={[GlobalStyles.lightBorder, { marginBottom: 10 }]}>
       <View style={styles.topSection}>
         <View style={styles.from}>
           <Text style={styles.smText}>From</Text>
@@ -103,37 +156,60 @@ const OrderListScreen = ({navigation}) => {
         </View>
         <View style={styles.to}>
           <Text style={styles.smText}>To</Text>
-          <Text style={styles.mdText}>{to}</Text>
-          <Text style={[styles.mdText, {fontSize: 12}]}>{toLoc}</Text>
+          <Text style={[styles.mdText, {textTransform: 'capitalize'}]}>{campus}</Text>
+          <Text style={[styles.mdText, { fontSize: 12, textTransform: 'capitalize' }]}>{locker}</Text>
         </View>
       </View>
       <View style={styles.middleSection}>
         <Text style={styles.lgText}>{custName}</Text>
-        <Text style={styles.orderNum}>Order <Text style={{ color: colors.theme}} >#{orderNum}</Text></Text>
+        <View>
+          <Text style={styles.orderNum}>Order <Text style={{ color: colors.theme }} >#{orderNum}</Text></Text>
+          <Text style={styles.mdText}>{deliveryTime}</Text>
+        </View>
       </View>
-      <View style={styles.bottomSection}>
-        <Text style={[styles.mdText, {fontSize: 12}]}>Update Status</Text>
-        <StatusToggle option1='On the way' option2='Arrived' option3='Delivered' active='On the way'/>
-      </View>
+
+      { loadingOrderId === id ? 
+        <ActivityIndicator size='small' color={colors.theme} /> : 
+        <View style={styles.bottomSection}>
+          <Text style={[styles.mdText, { fontSize: 12 }]}>Update Status</Text>
+          <StatusToggle 
+            option1='On the way' 
+            option2='Picked' 
+            option3='Delivered' 
+            activeStatus={mapFirebaseStatusToUI(orderStatus)} 
+            onStatusChange={(newUIStatus) => handleStatusChange(id, newUIStatus)} 
+          />
+        </View>
+      }
     </View>
   )
 
-  
   return (
     <Layout navigation={navigation} title='Live Orders'>
-      <SearchBar placeholder='Search Orders..'/>
+      <SearchBar placeholder='Search Orders..' />
       <FlatList
-      data={sortedOrders}
-      renderItem={({ item }) => 
-      <Order
-        from={item.from}
-        to={item.to}
-        toLoc={item.toLoc}
-        custName={item.custName}
-        orderNum={item.id}
-      />} 
-      keyExtractor={item => item.id}
-    />
+        ref={flatListRef}
+        data={sortedOrders}
+        renderItem={({ item }) =>
+          <Order
+            from={item.restaurantName} 
+            campus={item.campusName} 
+            locker={item.lockerName} 
+            custName={item.customerName}
+            orderNum={item.orderNum}
+            orderStatus= {item.orderStatus}
+            deliveryTime={item.deliveryTime}
+            id={item.id}
+          />}
+        keyExtractor={item => item.id}
+      />
+      {isLoading && (
+        <Modal transparent={true} animationType='none'>
+          <View style={styles.loadingOverlay}>
+            <ActivityIndicator size='large' color={colors.theme} />
+          </View>
+        </Modal>
+      )}
     </Layout>
   )
 }
@@ -141,9 +217,6 @@ const OrderListScreen = ({navigation}) => {
 export default OrderListScreen
 
 const styles = StyleSheet.create({
-  orderContainer: {
-
-  },
   topSection: {
     backgroundColor: colors.themeLight,
     borderRadius: 10,
@@ -194,10 +267,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.darkGray,
   },
-  updateText: {
-
-  },
-  // distanceBar
   distanceBar: {
     width: 95,
     flexDirection: 'row',
@@ -217,5 +286,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#52A5E4',
     borderStyle: 'dashed',
-  }
+  },
+  loadingOverlay: {
+    flex: 1,
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
 })

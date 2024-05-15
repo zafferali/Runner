@@ -1,34 +1,39 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import colors from 'constants/colors';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
+import colors from 'constants/colors'
 
-const StatusToggle = ({ option1, option2, option3, active}) => {
-  const [activeStatus, setActiveStatus] = useState(active);
+const StatusToggle = ({ option1, option2, option3, activeStatus, onStatusChange }) => {
+  const getButtonStyle = (status) => activeStatus === status ? styles.active : null
+
+  const handleStatusChange = (status) => {
+    onStatusChange(status)
+  }
 
   return (
     <View style={styles.toggleContainer}>
       <TouchableOpacity
-        style={[styles.toggleButton, activeStatus === option1 ? styles.active : null]}
-        onPress={() => setActiveStatus(option1)}
+        style={[styles.toggleButton, getButtonStyle('On the way')]}
+        onPress={() => handleStatusChange('On the way')}
       >
-        <Text style={[styles.toggleText, activeStatus === option1 ? styles.active : null ]}>{option1}</Text>
+        <Text style={[styles.toggleText, getButtonStyle('On the way')]}>{option1}</Text>
       </TouchableOpacity>
       <TouchableOpacity
-        style={[styles.toggleButton, activeStatus === option2 ? styles.active : null]}
-        onPress={() => setActiveStatus(option2)}
+        style={[styles.toggleButton, getButtonStyle('Picked')]}
+        onPress={() => handleStatusChange('Picked')}
       >
-        <Text style={[styles.toggleText, activeStatus === option2 ? styles.active : null ]}>{option2}</Text>
+        <Text style={[styles.toggleText, getButtonStyle('Picked')]}>{option2}</Text>
       </TouchableOpacity>
       {option3 &&
       <TouchableOpacity
-        style={[styles.toggleButton, activeStatus === option3 ? styles.active : null]}
-        onPress={() => setActiveStatus(option3)}
+        style={[styles.toggleButton, getButtonStyle('Delivered')]}
+        onPress={() => handleStatusChange('Delivered')}
       >
-        <Text style={[styles.toggleText, activeStatus === option3 ? styles.active : null ]}>{option3}</Text>
+        <Text style={[styles.toggleText, getButtonStyle('Delivered')]}>{option3}</Text>
       </TouchableOpacity>}
     </View>
-  );
-};
+  )
+}
+
+export default StatusToggle
 
 const styles = StyleSheet.create({
   toggleContainer: {
@@ -40,20 +45,18 @@ const styles = StyleSheet.create({
   toggleButton: {
     paddingVertical: 4,
     paddingHorizontal: 6,
-    borderRadius: 18, // Slightly less than container to fit inside padding
+    borderRadius: 18, 
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'transparent', // Default non-active color
+    backgroundColor: 'transparent', 
   },
   active: {
-    backgroundColor: colors.theme, // Active background color
+    backgroundColor: colors.theme, 
     color: 'white',
   },
   toggleText: {
-    color: colors.theme, // Text color
+    color: colors.theme,
     fontSize: 12,
-    fontWeight: '600'
+    fontWeight: '600',
   },
 });
-
-export default StatusToggle;
