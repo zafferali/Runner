@@ -11,7 +11,7 @@ import { makeCall } from 'utils/makeCall'
 
 const mapFirebaseStatusToUI = (firebaseStatus) => {
   switch (firebaseStatus) {
-    case 'ready':
+    case 'on the way':
       return 'On the way'
     case 'picked':
       return 'Picked'
@@ -25,7 +25,7 @@ const mapFirebaseStatusToUI = (firebaseStatus) => {
 const mapUIStatusToFirebase = (uiStatus) => {
   switch (uiStatus) {
     case 'On the way':
-      return 'ready'
+      return 'on the way'
     case 'Picked':
       return 'picked'
     case 'Delivered':
@@ -44,6 +44,7 @@ const OrderListScreen = ({ navigation }) => {
   const dispatch = useDispatch()
   const isLoading = useSelector(state => state.ui.loading)
   const flatListRef = useRef(null)
+  
 
   useEffect(() => {
     if (!runnerId) {
@@ -54,9 +55,9 @@ const OrderListScreen = ({ navigation }) => {
     const unsubscribe = firestore()
       .collection('orders')
       .where('runner', '==', runnerRef)
-      .where('orderStatus', 'in', ['ready', 'picked', 'delivered'])
+      .where('orderStatus', 'in', ['received', 'on the way', 'ready', 'picked', 'delivered'])
       .onSnapshot(async (querySnapshot) => {
-        // dispatch(toggleLoading()) // Show loading indicator
+        dispatch(toggleLoading())
         const ordersList = []
         for (const doc of querySnapshot.docs) {
           const data = doc.data()
@@ -78,10 +79,10 @@ const OrderListScreen = ({ navigation }) => {
         ordersList.sort((a, b) => a.deliveryTime.localeCompare(b.deliveryTime))
         setOrdersData(ordersList)
         setFilteredOrders(ordersList)
-        // dispatch(toggleLoading()) 
+        dispatch(toggleLoading())
       }, error => {
         console.error('Error fetching orders:', error)
-        // dispatch(toggleLoading()) 
+        dispatch(toggleLoading()) 
       })
 
     return () => unsubscribe()
