@@ -18,6 +18,7 @@ const LoginScreen = ({ navigation }) => {
   const [password, setPassword] = useState('');
   const dispatch = useDispatch()
   const isLoading = useSelector(state => state.ui.loading)
+  const [focus, setFocus] = useState(false)
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -58,7 +59,7 @@ const LoginScreen = ({ navigation }) => {
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      behavior="height"
       style={styles.container}
     >
       <ImageBackground
@@ -68,28 +69,35 @@ const LoginScreen = ({ navigation }) => {
         <View style={styles.topSection}>
           <Image
             source={require('images/logo.png')}
-            style={styles.logo}
+            style={[styles.logo, focus && {marginTop: 40}]}
           />
-          <Text style={styles.subtitle}>Partner companion</Text>
+          <Text style={styles.subtitle}>Delivery Partner</Text>
         </View>
         <View style={styles.form}>
         <TextInput
             placeholder="Email"
             placeholderTextColor="rgba(255, 255, 255, 0.4)"
+            autoCapitalize="none"
             autoCorrect={false}
             value={email}
             onChangeText={setEmail}
             style={styles.input}
+            onFocus={() => setFocus(true)}
+            onBlur={() => setFocus(false)}
           />
           <TextInput
             placeholder="Password"
             placeholderTextColor="rgba(255, 255, 255, 0.4)"
             secureTextEntry
             value={password}
+            autoCapitalize="none"
+            autoCorrect={false}
             onSubmitEditing={handleLogin}
             returnKeyType="go"
             onChangeText={setPassword}
             style={styles.input}
+            onFocus={() => setFocus(true)}
+            onBlur={() => setFocus(false)}
           />
           <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
             <Text style={styles.loginButtonText}>Login</Text>
@@ -131,22 +139,25 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'flex-start',
     alignItems: 'center',
-    paddingTop: 150,
+    marginBottom: 140,
   },
   subtitle: {
-    fontSize: 20,
+    fontSize: 18,
+    fontWeight: 'bold',
     color: '#C2C2C2',
     alignSelf: 'center',
-    marginBottom: 40,
+    marginBottom: 16,
   },
   form: {
     flex: 1,
     justifyContent: 'flex-start',
+    paddingBottom: 100,
   },
   logo: {
     maxWidth: 300,
-    maxHeight: 90,
+    maxHeight: 100,
     resizeMode: 'contain',
+    marginTop: 180,
   },
   input: {
     marginHorizontal: 20,

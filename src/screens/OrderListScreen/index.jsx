@@ -13,6 +13,8 @@ const mapFirebaseStatusToUI = (firebaseStatus) => {
   switch (firebaseStatus) {
     case 'on the way':
       return 'On the way'
+    case 'ready':
+      return 'On the way'
     case 'picked':
       return 'Picked'
     case 'delivered':
@@ -33,6 +35,14 @@ const mapUIStatusToFirebase = (uiStatus) => {
     default:
       return uiStatus
   }
+}
+
+const subtractMinutes = (time, minutes) => {
+  const [hours, mins] = time.split(':').map(Number)
+  const totalMinutes = hours * 60 + mins - minutes
+  const newHours = Math.floor(totalMinutes / 60)
+  const newMinutes = totalMinutes % 60
+  return `${String(newHours).padStart(2, '0')}:${String(newMinutes).padStart(2, '0')}`
 }
 
 const OrderListScreen = ({ navigation }) => {
@@ -57,7 +67,6 @@ const OrderListScreen = ({ navigation }) => {
       .where('runner', '==', runnerRef)
       .where('orderStatus', 'in', ['received', 'on the way', 'ready', 'picked', 'delivered'])
       .onSnapshot(async (querySnapshot) => {
-        dispatch(toggleLoading())
         const ordersList = []
         for (const doc of querySnapshot.docs) {
           const data = doc.data()
@@ -79,14 +88,12 @@ const OrderListScreen = ({ navigation }) => {
         ordersList.sort((a, b) => a.deliveryTime.localeCompare(b.deliveryTime))
         setOrdersData(ordersList)
         setFilteredOrders(ordersList)
-        dispatch(toggleLoading())
       }, error => {
         console.error('Error fetching orders:', error)
-        dispatch(toggleLoading()) 
       })
-
     return () => unsubscribe()
-  }, [runnerId, dispatch])
+  }, [runnerId])
+  
 
   const updateOrderStatus = async (orderId, newUIStatus) => {
     const newFirebaseStatus = mapUIStatusToFirebase(newUIStatus)
@@ -179,11 +186,14 @@ const OrderListScreen = ({ navigation }) => {
         </View>
       </View>
       <View style={styles.middleSection}>
-        <Text style={[styles.lgText, {textTransform: 'capitalize'}]}>{custName}</Text>
-        <View>
-          <Text style={styles.orderNum}>Order <Text style={{ color: colors.theme }} >#{orderNum}</Text></Text>
-          <Text style={styles.mdText}>{deliveryTime}</Text>
-        </View>
+          <View style={styles.row}>
+            <Text style={[styles.lgText, {textTransform: 'capitalize'}]}>{custName}</Text>
+            <Text style={styles.orderNum}>Order <Text style={{ color: colors.theme }} >#{orderNum}</Text></Text>   
+          </View>
+          <View style={styles.row}>
+            <Text style={styles.pickup}>Pickup by</Text>
+            <Text style={styles.mdText}>{subtractMinutes(deliveryTime, 15)}</Text>
+          </View>
       </View>
 
       { loadingOrderId === id ? 
@@ -231,14 +241,17 @@ const OrderListScreen = ({ navigation }) => {
             id={item.id}
           />}
         keyExtractor={item => item.id}
+        ListEmptyComponent={() => (
+          <View style={styles.noOrdersContainer}>
+            <Text style={styles.noOrdersText}>No Orders</Text>
+          </View>
+        )}
       />
-      {isLoading && (
-        <Modal transparent={true} animationType='none'>
+      {/* {isLoading && (
           <View style={styles.loadingOverlay}>
             <ActivityIndicator size='large' color={colors.theme} />
           </View>
-        </Modal>
-      )}
+      )} */}
     </Layout>
   )
 }
@@ -255,8 +268,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   middleSection: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
     marginTop: 16,
   },
   bottomSection: {
@@ -269,6 +280,10 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 6,
     paddingVertical: 6,
+  },
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between'
   },
   from: {
     flex: 1,
@@ -290,6 +305,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: colors.theme,
+  },
+  pickup: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.theme,
+    marginTop: 2,
   },
   orderNum: {
     fontSize: 12,
@@ -344,6 +365,16 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top:'35%',
     left: '2%',
-    // bottom: '-60%'
+  },
+  noOrdersContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 20,
+  },
+  noOrdersText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: colors.darkGray,
   },
 })

@@ -18,11 +18,10 @@ export const registerDeviceToken = async () => {
 // Function to remove the device token for a runner
 export const removeDeviceToken = async () => {
   const user = auth().currentUser
-
+  console.log('rem', user.uid)
   if (user) {
     const runnerRef = firestore().collection('runners').doc(user.uid)
-
-    // Clear the token from the fcmToken field
+    console.log('runnerRef', runnerRef)
     await runnerRef.update({
       fcmToken: firestore.FieldValue.delete()
     })

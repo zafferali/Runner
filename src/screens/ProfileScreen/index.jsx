@@ -11,6 +11,7 @@ import { makeCall } from 'utils/makeCall'
 import firestore from '@react-native-firebase/firestore';
 import { toggleLoading } from 'slices/uiSlice'
 import { updateUser } from 'slices/userSlice'
+import { removeDeviceToken } from '../../notification/notification'
 
 const ProfileScreen = ({navigation}) => {
   const isAvailable = useSelector(state => state.availability.available);
@@ -125,12 +126,13 @@ const ProfileScreen = ({navigation}) => {
         text: 'OK',
         onPress: async () => {
           try {
+            await removeDeviceToken(runnerId);
             await auth().signOut();
-            // removeDeviceToken(restaurantId);
             console.log('logged out');
             dispatch(logout());
           } catch (e) {
-            Alert.alert('Failed to logout');
+            console.log('hi', runnerId)
+            Alert.alert('Failed to logout', e.message);
           }
         },
       },

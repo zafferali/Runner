@@ -39,6 +39,9 @@ function BottomTabNavigator() {
           tabBarStyle: {
             display: getFocusedRouteNameFromRoute(route) === 'SettingsScreen' ? 'none' : 'flex',
             height: 70,
+            backgroundColor: '#FAFAFA',
+            borderTopWidth: 1,
+            borderTopColor: '#E0E0E0',
           },
           tabBarIcon: ({ focused }) => (
             <View style={styles.menuItem}>
