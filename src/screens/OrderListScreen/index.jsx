@@ -8,6 +8,7 @@ import StatusToggle from '../../components/common/StatusToggle'
 import { useDispatch, useSelector } from 'react-redux'
 import { toggleLoading } from 'slices/uiSlice'
 import { makeCall } from 'utils/makeCall'
+import DeliveryModal from './DeliveryModal'
 
 const mapFirebaseStatusToUI = (firebaseStatus) => {
   switch (firebaseStatus) {
@@ -54,7 +55,8 @@ const OrderListScreen = ({ navigation }) => {
   const dispatch = useDispatch()
   const isLoading = useSelector(state => state.ui.loading)
   const flatListRef = useRef(null)
-  
+  const [modalVisible, setModalVisible] = useState(false)
+  const [currentOrder, setCurrentOrder] = useState({ orderNum: '', pickupCode: '' })
 
   useEffect(() => {
     if (!runnerId) {
@@ -73,10 +75,11 @@ const OrderListScreen = ({ navigation }) => {
           const restaurantDoc = data.restaurant ? await data.restaurant.get() : null
           const customerDoc = data.customer ? await data.customer.get() : null
           const lockerDoc = data.locker ? await data.locker.get() : null
-          
+
           ordersList.push({
             id: doc.id,
             orderNum: data?.orderNum,
+            pickupCode: data?.pickupCode,
             orderStatus: data?.orderStatus,
             deliveryTime: data?.deliveryTime,
             restaurantName: restaurantDoc?.data()?.name,
@@ -93,7 +96,6 @@ const OrderListScreen = ({ navigation }) => {
       })
     return () => unsubscribe()
   }, [runnerId])
-  
 
   const updateOrderStatus = async (orderId, newUIStatus) => {
     const newFirebaseStatus = mapUIStatusToFirebase(newUIStatus)
@@ -103,7 +105,7 @@ const OrderListScreen = ({ navigation }) => {
         .collection('orders')
         .doc(orderId)
         .update({ orderStatus: newFirebaseStatus })
-    
+
       setOrdersData(prevState => 
         prevState.map(order => 
           order.id === orderId ? { ...order, orderStatus: newFirebaseStatus } : order
@@ -130,14 +132,8 @@ const OrderListScreen = ({ navigation }) => {
     const currentStatus = mapFirebaseStatusToUI(currentOrder.orderStatus)
 
     if (newUIStatus === 'Delivered' && currentStatus !== 'Delivered') {
-      Alert.alert(
-        'Are you sure the food is delivered?',
-        'Upon confirmation, Customer will be informed to collect the food from the locker.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Yes', onPress: () => updateOrderStatus(orderId, newUIStatus) },
-        ]
-      )
+      setCurrentOrder({ orderNum: currentOrder.orderNum, pickupCode: currentOrder.pickupCode })
+      setModalVisible(true)
     } else if (currentStatus === 'Delivered' && newUIStatus !== 'Delivered') {
       Alert.alert(
         'Status cannot be changed',
@@ -167,6 +163,13 @@ const OrderListScreen = ({ navigation }) => {
     }
   }
 
+  const onConfirmHandler = () => {
+    const { orderNum, pickupCode } = currentOrder
+    // Update the order status to 'delivered' in Firebase
+    const orderId = ordersData.find(order => order.orderNum === orderNum).id
+    updateOrderStatus(orderId, 'Delivered')
+  }
+
   const Order = ({ from, campus, locker, custName, orderNum, deliveryTime, orderStatus, id }) => (
     <View style={[GlobalStyles.lightBorder, { marginBottom: 10 }]}>
       <View style={styles.topSection}>
@@ -191,7 +194,7 @@ const OrderListScreen = ({ navigation }) => {
             <Text style={styles.orderNum}>Order <Text style={{ color: colors.theme }} >#{orderNum}</Text></Text>   
           </View>
           <View style={styles.row}>
-            <Text style={styles.pickup}>Pickup by</Text>
+            <Text style={styles.pickup}>Deliver by</Text>
             <Text style={styles.mdText}>{subtractMinutes(deliveryTime, 15)}</Text>
           </View>
       </View>
@@ -203,7 +206,7 @@ const OrderListScreen = ({ navigation }) => {
           <StatusToggle 
             option1='On the way' 
             option2='Picked' 
-            option3='Delivered' 
+            option3='Deliver' 
             activeStatus={mapFirebaseStatusToUI(orderStatus)} 
             onStatusChange={(newUIStatus) => handleStatusChange(id, newUIStatus)} 
           />
@@ -247,11 +250,13 @@ const OrderListScreen = ({ navigation }) => {
           </View>
         )}
       />
-      {/* {isLoading && (
-          <View style={styles.loadingOverlay}>
-            <ActivityIndicator size='large' color={colors.theme} />
-          </View>
-      )} */}
+      <DeliveryModal 
+        visible={modalVisible} 
+        onClose={() => setModalVisible(!modalVisible)}
+        orderNum={currentOrder.orderNum}
+        pickupCode={currentOrder.pickupCode}
+        onConfirm={onConfirmHandler}
+       />
     </Layout>
   )
 }

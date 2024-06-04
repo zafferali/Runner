@@ -22,39 +22,53 @@ const LoginScreen = ({ navigation }) => {
 
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Error', 'Please enter all fields');
-      return;
+      Alert.alert('Error', 'Please enter all fields')
+      return
     }
+
+    const lowercasedEmail = email.toLowerCase()
     dispatch(toggleLoading())
+
     try {
-      console.log('ep', email, password)
-      let response = await auth().signInWithEmailAndPassword(email, password);
+      console.log('ep', lowercasedEmail, password)
+      const runnersQuerySnapshot = await firestore()
+        .collection('runners')
+        .where('email', '==', lowercasedEmail)
+        .get()
+  
+      if (runnersQuerySnapshot.empty) {
+        Alert.alert('Error', 'No user found with this email')
+        return
+      }
+  
+      let response = await auth().signInWithEmailAndPassword(lowercasedEmail, password)
       if (response && response.user) {
         console.log('log', response.user.uid)
         const runnerDoc = await firestore().collection('runners').doc(response.user.uid).get()
-        if (runnerDoc.exists) { 
-        const runnerData = runnerDoc.data()
-        dispatch(login(response.user.uid))
-        dispatch(updateUser({
-          name: runnerData.name,
-          email: runnerData.email,
-          mobile: runnerData.mobile,
-          photoUrl: runnerData.photoUrl,
-          isActive: runnerData.isActive,
-        }))
-      }}
+        if (runnerDoc.exists) {
+          const runnerData = runnerDoc.data()
+          dispatch(login(response.user.uid))
+          dispatch(updateUser({
+            name: runnerData.name,
+            email: runnerData.email,
+            mobile: runnerData.mobile,
+            photoUrl: runnerData.photoUrl,
+            isActive: runnerData.isActive,
+          }))
+        }
+      }
     } catch (e) {
-      if (e.code === 'auth/user-not-found') {
-        Alert.alert('Error', 'No user found for this email');
-      } else if (e.code === 'auth/wrong-password') {
-        Alert.alert('Error', 'Wrong password provided');
+      if (e.code === 'auth/invalid-credential') {
+        Alert.alert('Invalid credentials', 'Please enter correct Email/Password')
       } else {
-        Alert.alert('Error', e.message);
+        Alert.alert('Error', 'Unknown error')
       }
     } finally {
       dispatch(toggleLoading())
     }
-  };
+  }
+
+  
 
 
   return (

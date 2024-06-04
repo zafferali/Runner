@@ -1,25 +1,19 @@
-import { useEffect } from 'react';
-import { StatusBar, Alert } from 'react-native';
+import React, { useEffect } from 'react';
+import { View, StatusBar, Alert, ActivityIndicator } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
-import {AuthStackNavigator} from './navigation/AuthStackNavigator';
+import { AuthStackNavigator } from './navigation/AuthStackNavigator';
 import BottomTabNavigator from './navigation/BottomTabNavigator';
 import { requestNotificationPermission, promptForSettings } from './utils/permissions';
 import { registerDeviceToken } from './notification/notification';
-import { useSelector } from 'react-redux';
-import messaging from '@react-native-firebase/messaging'
-import { navigate } from './navigation/navigationService'
-import { navigationRef, setNavigationReady } from './navigation/navigationService'
-// import { setCustomText } from 'react-native-global-props';
-
-// const customTextProps = {
-//   style: {
-//     fontFamily: 'Inter-SemiBold',
-//     fontSize: 28,
-//     color: 'black',
-//     fontWeight: '600',
-//   }
-// };
-// setCustomText(customTextProps);
+import { useDispatch, useSelector } from 'react-redux';
+import messaging from '@react-native-firebase/messaging';
+import { navigate } from './navigation/navigationService';
+import { navigationRef, setNavigationReady } from './navigation/navigationService';
+import auth from '@react-native-firebase/auth';
+import { setAuthenticated } from 'slices/authenticationSlice';
+import { updateUser } from 'slices/userSlice';
+import firestore from '@react-native-firebase/firestore';
+import colors from 'constants/colors';
 
 function NotificationHandler() {
   const { isAuthenticated } = useSelector(state => state.authentication);
@@ -110,16 +104,49 @@ function NotificationHandler() {
   return null; // This component does not render anything
 }
 
-
 function App() {
-  const { isAuthenticated } = useSelector(state => state.authentication)
+  const { isAuthenticated, loading } = useSelector(state => state.authentication)
+  const dispatch = useDispatch();
+
+  useEffect(() => {
+    const unsubscribe = auth().onAuthStateChanged(async user => {
+      if (user) {
+        const runnerDoc = await firestore().collection('runners').doc(user.uid).get();
+        if (runnerDoc.exists) {
+          const runnerData = runnerDoc.data();
+          dispatch(setAuthenticated({ runnerId: user.uid, isAuthenticated: true }));
+          dispatch(updateUser({
+            name: runnerData.name,
+            email: runnerData.email,
+            mobile: runnerData.mobile,
+            photoUrl: runnerData.photoUrl,
+            isActive: runnerData.isActive,
+          }))
+        } else {
+          dispatch(setAuthenticated({ runnerId: null, isAuthenticated: false }));
+        }
+      } else {
+        dispatch(setAuthenticated({ runnerId: null, isAuthenticated: false }));
+      }
+    });
+
+    return () => unsubscribe();
+  }, [dispatch]);
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color={colors.theme} />
+      </View>
+    );
+  }
 
   return (
     <>
       <StatusBar backgroundColor="transparent" translucent={true} />
       {isAuthenticated ? <BottomTabNavigator /> : <AuthStackNavigator />}
     </>
-  )
+  );
 }
 
 function Root() {
@@ -134,9 +161,7 @@ function Root() {
       <App />
       <NotificationHandler />
     </NavigationContainer>
-  )
+  );
 }
 
-export default Root
-
-
+export default Root;
