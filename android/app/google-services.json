@@ -8,6 +8,58 @@
   "client": [
     {
       "client_info": {
+        "mobilesdk_app_id": "1:959474970060:android:dd7138749e45a5a5464169",
+        "android_client_info": {
+          "package_name": "com.customer"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "959474970060-0di1irf3k0pu1arh2irkqca914il9ulc.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.customer",
+            "certificate_hash": "eb68e0fe2e869c3f98b5060b0aacc873943bf520"
+          }
+        },
+        {
+          "client_id": "959474970060-pqlq9peu1dbmu05csqcnv43uhu1ajgeq.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.customer",
+            "certificate_hash": "22fb2a4c9ef7bcecc2e5fa19c06329dd6c19bd64"
+          }
+        },
+        {
+          "client_id": "959474970060-m558oo297gh96rvjsbr8pr06i26qu268.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDfmamjih_GtJKo0Z22v1Ifec45HdGO4AM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "959474970060-m558oo297gh96rvjsbr8pr06i26qu268.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "959474970060-2m96pf6fct62s13ssc8vt7v8t4bq6g4o.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.briskit.customer"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
         "mobilesdk_app_id": "1:959474970060:android:202100d15c657a89464169",
         "android_client_info": {
           "package_name": "com.customerkiosk"
@@ -46,6 +98,13 @@
             {
               "client_id": "959474970060-m558oo297gh96rvjsbr8pr06i26qu268.apps.googleusercontent.com",
               "client_type": 3
+            },
+            {
+              "client_id": "959474970060-2m96pf6fct62s13ssc8vt7v8t4bq6g4o.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.briskit.customer"
+              }
             }
           ]
         }
@@ -59,6 +118,14 @@
         }
       },
       "oauth_client": [
+        {
+          "client_id": "959474970060-tak17sdv0r9nd2shmt6q2so894oac94t.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.restaurantbriskit",
+            "certificate_hash": "eac294b10cbfc9046a39814d625c46a9092760e0"
+          }
+        },
         {
           "client_id": "959474970060-umscabjl128m3l52dua7pgrkvc23db12.apps.googleusercontent.com",
           "client_type": 1,
@@ -83,6 +150,13 @@
             {
               "client_id": "959474970060-m558oo297gh96rvjsbr8pr06i26qu268.apps.googleusercontent.com",
               "client_type": 3
+            },
+            {
+              "client_id": "959474970060-2m96pf6fct62s13ssc8vt7v8t4bq6g4o.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.briskit.customer"
+              }
             }
           ]
         }
@@ -105,6 +179,14 @@
           }
         },
         {
+          "client_id": "959474970060-ru05lj8ds3230rpk20ei2i7h3g5q12mr.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.runner",
+            "certificate_hash": "8a968370b05e3d727875bf2a9757f21d20967c5c"
+          }
+        },
+        {
           "client_id": "959474970060-m558oo297gh96rvjsbr8pr06i26qu268.apps.googleusercontent.com",
           "client_type": 3
         }
@@ -120,6 +202,13 @@
             {
               "client_id": "959474970060-m558oo297gh96rvjsbr8pr06i26qu268.apps.googleusercontent.com",
               "client_type": 3
+            },
+            {
+              "client_id": "959474970060-2m96pf6fct62s13ssc8vt7v8t4bq6g4o.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.briskit.customer"
+              }
             }
           ]
         }

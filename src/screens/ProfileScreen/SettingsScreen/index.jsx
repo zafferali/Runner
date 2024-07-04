@@ -46,8 +46,8 @@ const SettingsScreen = ({navigation}) => {
   };
 
   const handleUploadImage = async (fromCamera) => {
-    try {
-      dispatch(toggleLoading());
+    dispatch(toggleLoading());
+    try { 
       const url = await uploadImageToFirebase(fromCamera);
       setImageUrl(url);
       setModalVisible(false);
