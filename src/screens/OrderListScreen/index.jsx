@@ -1,42 +1,10 @@
 import React, { useEffect, useState, useRef } from 'react'
-import { StyleSheet, Text, View, FlatList, ActivityIndicator, Alert, Modal, TextInput, Image } from 'react-native'
+import { StyleSheet, Text, View, FlatList, TextInput, Image, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native'
 import firestore from '@react-native-firebase/firestore'
 import Layout from 'common/Layout'
-import { GlobalStyles } from 'constants/GlobalStyles'
 import colors from 'constants/colors'
-import StatusToggle from '../../components/common/StatusToggle'
-import { useDispatch, useSelector } from 'react-redux'
-import { toggleLoading } from 'slices/uiSlice'
-import { makeCall } from 'utils/makeCall'
-import DeliveryModal from './DeliveryModal'
-
-const mapFirebaseStatusToUI = (firebaseStatus) => {
-  switch (firebaseStatus) {
-    case 'on the way':
-      return 'On the way'
-    case 'ready':
-      return 'On the way'
-    case 'picked':
-      return 'Picked'
-    case 'delivered':
-      return 'Delivered'
-    default:
-      return firebaseStatus
-  }
-}
-
-const mapUIStatusToFirebase = (uiStatus) => {
-  switch (uiStatus) {
-    case 'On the way':
-      return 'on the way'
-    case 'Picked':
-      return 'picked'
-    case 'Delivered':
-      return 'delivered'
-    default:
-      return uiStatus
-  }
-}
+import { useSelector } from 'react-redux'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 
 const subtractMinutes = (time, minutes) => {
   const [hours, mins] = time.split(':').map(Number)
@@ -49,25 +17,55 @@ const subtractMinutes = (time, minutes) => {
 const OrderListScreen = ({ navigation }) => {
   const [ordersData, setOrdersData] = useState([])
   const [filteredOrders, setFilteredOrders] = useState([])
-  const [loadingOrderId, setLoadingOrderId] = useState(null)
+  const [upcomingOrders, setUpcomingOrders] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
+  const [activeTab, setActiveTab] = useState('Active')
+  const [openedOrders, setOpenedOrders] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
   const runnerId = useSelector(state => state.authentication.runnerId)
-  const dispatch = useDispatch()
-  const isLoading = useSelector(state => state.ui.loading)
+
   const flatListRef = useRef(null)
-  const [modalVisible, setModalVisible] = useState(false)
-  const [currentOrder, setCurrentOrder] = useState({ orderNum: '', pickupCode: '' })
 
   useEffect(() => {
-    if (!runnerId) {
-      return
+    loadOpenedOrders()
+    const unsubscribe = fetchOrders()
+    return () => unsubscribe()
+  }, [runnerId])
+
+  useEffect(() => {
+    filterOrders(ordersData, activeTab)
+  }, [ordersData, activeTab, openedOrders])
+
+  const loadOpenedOrders = async () => {
+    try {
+      const openedOrdersString = await AsyncStorage.getItem('openedOrders')
+      if (openedOrdersString) {
+        setOpenedOrders(JSON.parse(openedOrdersString))
+      }
+    } catch (error) {
+      console.error('Error loading opened orders:', error)
     }
+  }
+
+  const saveOpenedOrders = async (updatedOpenedOrders) => {
+    try {
+      await AsyncStorage.setItem('openedOrders', JSON.stringify(updatedOpenedOrders))
+    } catch (error) {
+      console.error('Error saving opened orders:', error)
+    }
+  }
+
+  const fetchOrders = () => {
+    if (!runnerId) {
+      setIsLoading(false)
+      return () => {}
+    }
+
     const runnerRef = firestore().doc(`runners/${runnerId}`)
 
-    const unsubscribe = firestore()
+    return firestore()
       .collection('orders')
       .where('runner', '==', runnerRef)
-      .where('orderStatus', 'in', ['received', 'on the way', 'ready', 'picked', 'delivered'])
       .onSnapshot(async (querySnapshot) => {
         const ordersList = []
         for (const doc of querySnapshot.docs) {
@@ -86,75 +84,45 @@ const OrderListScreen = ({ navigation }) => {
             customerName: customerDoc?.data()?.name,
             campusName: lockerDoc?.data()?.campus,
             lockerName: lockerDoc?.data()?.lockerName,
+            items: data?.items,
+            instructions: data?.instructions
           })
         }
         ordersList.sort((a, b) => a.deliveryTime.localeCompare(b.deliveryTime))
         setOrdersData(ordersList)
-        setFilteredOrders(ordersList)
+        setIsLoading(false)
       }, error => {
         console.error('Error fetching orders:', error)
+        setIsLoading(false)
       })
-    return () => unsubscribe()
-  }, [runnerId])
-
-  const updateOrderStatus = async (orderId, newUIStatus) => {
-    const newFirebaseStatus = mapUIStatusToFirebase(newUIStatus)
-    setLoadingOrderId(orderId)
-    try {
-      await firestore()
-        .collection('orders')
-        .doc(orderId)
-        .update({ orderStatus: newFirebaseStatus })
-
-      setOrdersData(prevState => 
-        prevState.map(order => 
-          order.id === orderId ? { ...order, orderStatus: newFirebaseStatus } : order
-        )
-      )
-      setFilteredOrders(prevState => 
-        prevState.map(order => 
-          order.id === orderId ? { ...order, orderStatus: newFirebaseStatus } : order
-        )
-      )
-    } catch (error) {
-      console.error('Error updating order status:', error)
-    } finally {
-      setLoadingOrderId(null)
-      const index = ordersData.findIndex(order => order.id === orderId)
-      if (flatListRef.current && index !== -1) {
-        flatListRef.current.scrollToIndex({ index, animated: true })
-      }
-    }
   }
 
-  const handleStatusChange = (orderId, newUIStatus) => {
-    const currentOrder = ordersData.find(order => order.id === orderId)
-    const currentStatus = mapFirebaseStatusToUI(currentOrder.orderStatus)
+  const filterOrders = (orders, tab) => {
+    const activeStatuses = ['received', 'ready', 'on the way', 'picked', 'delivered']
+    const pastStatuses = ['completed', 'cancelled']
 
-    if (newUIStatus === 'Delivered' && currentStatus !== 'Delivered') {
-      setCurrentOrder({ orderNum: currentOrder.orderNum, pickupCode: currentOrder.pickupCode })
-      setModalVisible(true)
-    } else if (currentStatus === 'Delivered' && newUIStatus !== 'Delivered') {
-      Alert.alert(
-        'Status cannot be changed',
-        'Please call Customer Care to change the status',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Call Customer Care', onPress: () => makeCall() },
-        ]
-      )
-    } else {
-      updateOrderStatus(orderId, newUIStatus)
-    }
+    const upcoming = orders.filter(order => 
+      !openedOrders.includes(order.id) && activeStatuses.includes(order.orderStatus)
+    )
+    setUpcomingOrders(upcoming)
+
+    let filtered = orders.filter(order => 
+      tab === 'Active' ? activeStatuses.includes(order.orderStatus) : pastStatuses.includes(order.orderStatus)
+    )
+
+    filtered = filtered.filter(order => openedOrders.includes(order.id))
+    filtered.sort((a, b) => a.deliveryTime.localeCompare(b.deliveryTime))
+
+    setFilteredOrders(filtered)
   }
 
   const handleSearch = (query) => {
     setSearchQuery(query)
     if (query === '') {
-      setFilteredOrders(ordersData)
+      filterOrders(ordersData, activeTab)
     } else {
       const lowerCaseQuery = query.toLowerCase()
-      const filtered = ordersData.filter(order => 
+      const filtered = [...upcomingOrders, ...filteredOrders].filter(order => 
         order.restaurantName.toLowerCase().includes(lowerCaseQuery) ||
         order.orderNum.toString().includes(lowerCaseQuery) ||
         order.customerName.toLowerCase().includes(lowerCaseQuery)
@@ -163,100 +131,108 @@ const OrderListScreen = ({ navigation }) => {
     }
   }
 
-  const onConfirmHandler = () => {
-    const { orderNum, pickupCode } = currentOrder
-    // Update the order status to 'delivered' in Firebase
-    const orderId = ordersData.find(order => order.orderNum === orderNum).id
-    updateOrderStatus(orderId, 'Delivered')
+  const handleOrderPress = (item) => {
+    if (!openedOrders.includes(item.id)) {
+      const updatedOpenedOrders = [...openedOrders, item.id]
+      setOpenedOrders(updatedOpenedOrders)
+      saveOpenedOrders(updatedOpenedOrders)
+    }
+    navigation.navigate('OrderDetailScreen', { order: item })
   }
 
-  const Order = ({ from, campus, locker, custName, orderNum, deliveryTime, orderStatus, id }) => (
-    <View style={[GlobalStyles.lightBorder, { marginBottom: 10 }]}>
-      <View style={styles.topSection}>
-        <View style={styles.from}>
-          <Text style={styles.smText}>From</Text>
-          <Text style={styles.mdText}>{from}</Text>
+  const renderContent = () => {
+    if (isLoading) {
+      return (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.theme} />
+          <Text style={styles.loadingText}>Loading orders...</Text>
         </View>
-        <View style={styles.distanceBar}>
-          <View style={styles.dot}></View>
-          <View style={styles.dashedLine}></View>
-          <View style={styles.dot}></View>
-        </View>
-        <View style={styles.to}>
-          <Text style={styles.smText}>To</Text>
-          <Text style={[styles.mdText, {textTransform: 'capitalize'}]}>{campus}</Text>
-          <Text style={[styles.mdText, { fontSize: 12, textTransform: 'capitalize' }]}>{locker}</Text>
-        </View>
-      </View>
-      <View style={styles.middleSection}>
-          <View style={styles.row}>
-            <Text style={[styles.lgText, {textTransform: 'capitalize'}]}>{custName}</Text>
-            <Text style={styles.orderNum}>Order <Text style={{ color: colors.theme }} >#{orderNum}</Text></Text>   
-          </View>
-          <View style={styles.row}>
-            <Text style={styles.pickup}>Deliver by</Text>
-            <Text style={styles.mdText}>{subtractMinutes(deliveryTime, 15)}</Text>
-          </View>
-      </View>
+      )
+    }
 
-      { loadingOrderId === id ? 
-        <ActivityIndicator size='small' color={colors.theme} /> : 
-        <View style={styles.bottomSection}>
-          <Text style={[styles.mdText, { fontSize: 12 }]}>Update Status</Text>
-          <StatusToggle 
-            option1='On the way' 
-            option2='Picked' 
-            option3='Deliver' 
-            activeStatus={mapFirebaseStatusToUI(orderStatus)} 
-            onStatusChange={(newUIStatus) => handleStatusChange(id, newUIStatus)} 
-          />
+    if (filteredOrders.length === 0 && upcomingOrders.length === 0) {
+      return (
+        <View style={styles.noOrdersContainer}>
+          <Text style={styles.noOrdersText}>No Orders</Text>
         </View>
-      }
-    </View>
-  )
+      )
+    }
+
+    return (
+      <>
+        <FlatList
+          ref={flatListRef}
+          data={filteredOrders}
+          renderItem={({ item }) => (
+            <TouchableOpacity style={styles.orderContainer} onPress={() => handleOrderPress(item)}>
+              <View style={styles.leftSection}>
+                <Text style={styles.lgText}>{item.customerName}</Text>
+                <Text style={[styles.mdText, {color: colors.theme}]}>{item.restaurantName}</Text>
+                <Text style={styles.deliveryTime}>Deliver to locker before <Text style={styles.time}>{subtractMinutes(item.deliveryTime, 15)}</Text></Text>
+              </View>
+              <View style={styles.rightSection}>
+                <Image style={styles.next} source={require('images/next.png')}/>
+              </View>
+            </TouchableOpacity>
+          )}
+          keyExtractor={item => item.id}
+        />
+      </>
+    )
+  }
 
   return (
     <Layout navigation={navigation} title='Live Orders'>
-      <View style={styles.searchBarContainer}> 
+      {/* <View style={styles.searchBarContainer}> 
         <Image
-          source={require('images/search.png')} // Replace with your search icon
+          source={require('images/search.png')}
           style={styles.icon}
         />
         <TextInput
-        style={styles.searchBar}
-        placeholder='Search Orders..'
-        value={searchQuery}
-        onChangeText={handleSearch}
+          style={styles.searchBar}
+          placeholder='Search orders...'
+          value={searchQuery}
+          onChangeText={handleSearch}
         />
+      </View> */}
+     
+      {upcomingOrders.length > 0 && (
+        <View style={styles.upcomingSection}>
+          <Text style={styles.sectionHeaderText}>New order(s)</Text>
+          <ScrollView style={{minheight: 100, maxHeight: 220}}>
+            {upcomingOrders.map(order => (
+              <View key={order.id} style={styles.upcomingOrderContainer}>
+                <Text style={styles.lgText}>{order.customerName}</Text>
+                <Text style={[styles.mdText, {color: colors.theme}]}>{order.restaurantName}</Text>
+                <Text style={styles.deliveryTime}>Deliver to locker before <Text style={styles.time}>{subtractMinutes(order.deliveryTime, 15)}</Text></Text>
+                <TouchableOpacity 
+                  style={styles.moreDetailsButton}
+                  onPress={() => handleOrderPress(order)}
+                >
+                  <Text style={styles.moreDetailsText}>More Details</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+
+      <View style={styles.tabContainer}>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'Active' && styles.activeTab]}
+          onPress={() => setActiveTab('Active')}
+        >
+          <Text style={[styles.tabText, activeTab === 'Active' && styles.activeTabText]}>Active</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'Past' && styles.activeTab]}
+          onPress={() => setActiveTab('Past')}
+        >
+          <Text style={[styles.tabText, activeTab === 'Past' && styles.activeTabText]}>Past</Text>
+        </TouchableOpacity>
       </View>
-      <FlatList
-        ref={flatListRef}
-        data={filteredOrders}
-        renderItem={({ item }) =>
-          <Order
-            from={item.restaurantName} 
-            campus={item.campusName} 
-            locker={item.lockerName} 
-            custName={item.customerName}
-            orderNum={item.orderNum}
-            orderStatus= {item.orderStatus}
-            deliveryTime={item.deliveryTime}
-            id={item.id}
-          />}
-        keyExtractor={item => item.id}
-        ListEmptyComponent={() => (
-          <View style={styles.noOrdersContainer}>
-            <Text style={styles.noOrdersText}>No Orders</Text>
-          </View>
-        )}
-      />
-      <DeliveryModal 
-        visible={modalVisible} 
-        onClose={() => setModalVisible(!modalVisible)}
-        orderNum={currentOrder.orderNum}
-        pickupCode={currentOrder.pickupCode}
-        onConfirm={onConfirmHandler}
-       />
+  
+      {renderContent()}
     </Layout>
   )
 }
@@ -264,112 +240,171 @@ const OrderListScreen = ({ navigation }) => {
 export default OrderListScreen
 
 const styles = StyleSheet.create({
-  topSection: {
-    backgroundColor: colors.themeLight,
-    borderRadius: 10,
-    padding: 10,
+  upcomingSection: {
+    marginBottom: 20,
+  },
+  tabContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    marginBottom: 10,
   },
-  middleSection: {
-    marginTop: 16,
-  },
-  bottomSection: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 10,
-    paddingHorizontal: 6,
-    paddingVertical: 6,
-  },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between'
-  },
-  from: {
+  tab: {
     flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
   },
-  to: {
-    flex: 1,
+  activeTab: {
+    borderBottomColor: colors.theme,
   },
-  smText: {
-    fontSize: 12,
+  tabText: {
+    fontSize: 16,
     fontWeight: '600',
-    color: '#3F80B0'
+    color: colors.darkGray,
   },
-  mdText: {
-    fontSize: 14,
+  activeTabText: {
+    color: colors.theme,
+  },
+  sectionHeaderText: {
+    fontSize: 16,
     fontWeight: 'bold',
     color: colors.theme,
+    marginBottom: 10,
+  },
+  orderContainer: {
+    flexDirection: 'row',
+    minHeight: 90,
+    borderRadius: 10,
+    borderColor: 'rgba(46, 94, 130, 0.25)',
+    borderWidth: 1,
+    marginBottom: 10,
+  },
+  leftSection: {
+    flex: 4,
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+  },
+  rightSection: {
+    backgroundColor: 'rgba(46, 94, 130, 0.25)',
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderTopRightRadius: 10,
+    borderBottomRightRadius: 10,
   },
   lgText: {
     fontSize: 16,
     fontWeight: '600',
     color: colors.theme,
-  },
-  pickup: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: colors.theme,
-    marginTop: 2,
-  },
-  orderNum: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.darkGray,
-  },
-  distanceBar: {
-    width: 95,
-    flexDirection: 'row',
-    height: 1,
-    alignItems: 'center',
-    alignSelf: 'center',
-    paddingHorizontal: 14 ,
-  },
-  dot:{
-    backgroundColor: colors.theme,
-    width: 10,
-    height: 10,
-    borderRadius: 100,
-  },
-  dashedLine: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: '#52A5E4',
-    borderStyle: 'dashed',
-  },
-  loadingOverlay: {
-    flex: 1,
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    marginBottom: 6,
+    textTransform: 'capitalize',
   },
   searchBarContainer: {
-    position: 'relative'
+    position: 'relative',
+    marginBottom: 20,
   },
   searchBar: {
     height: 40,
     borderColor: colors.border,
     borderWidth: 1,
-    borderRadius: 10,
-    paddingLeft: 30,
-    marginVertical: 10,
+    borderRadius: 6,
+    paddingLeft: 40,
+    backgroundColor: 'white',
   },
   icon: {
+    width: 18,
+    height: 18,
+    position: 'absolute',
+    top: '25%',
+    left: 10,
+    zIndex: 1,
+  },
+  upcomingSection: {
+    backgroundColor: '#F0F4F8',
+    borderRadius: 10,
+    padding: 15,
+    marginBottom: 20,
+  },
+  sectionHeaderText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: colors.theme,
+    marginBottom: 10,
+  },
+  upcomingOrderContainer: {
+    backgroundColor: 'white',
+    borderRadius: 10,
+    padding: 15,
+    marginBottom: 10,
+  },
+  moreDetailsButton: {
+    backgroundColor: '#E6EEF4',
+    borderRadius: 5,
+    padding: 10,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  moreDetailsText: {
+    color: colors.theme,
+    fontWeight: '600',
+  },
+  tabContainer: {
+    flexDirection: 'row',
+    marginBottom: 20,
+    backgroundColor: '#F0F4F8',
+    borderRadius: 25,
+    padding: 5,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderRadius: 20,
+  },
+  activeTab: {
+    backgroundColor: colors.theme,
+  },
+  tabText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.darkGray,
+  },
+  activeTabText: {
+    color: 'white',
+  },
+  orderContainer: {
+    flexDirection: 'row',
+    minHeight: 80,
+    borderRadius: 10,
+    borderColor: '#E6EEF4',
+    marginBottom: 10,
+    borderWidth: 1,
+  },
+  leftSection: {
+    flex: 4,
+    justifyContent: 'center',
+    paddingHorizontal: 15,
+  },
+  rightSection: {
+    backgroundColor: '#E6EEF4',
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderTopRightRadius: 10,
+    borderBottomRightRadius: 10,
+  },
+  next: {
     width: 16,
     height: 16,
-    position: 'absolute',
-    top:'35%',
-    left: '2%',
+    tintColor: colors.theme,
+  },
+  deliveryTime: {
+    fontSize: 14,
+    color: colors.darkGray,
+  },
+  time: {
+    color: colors.theme,
+    fontWeight: '600'
   },
   noOrdersContainer: {
     flex: 1,
@@ -380,6 +415,16 @@ const styles = StyleSheet.create({
   noOrdersText: {
     fontSize: 16,
     fontWeight: 'bold',
+    color: colors.darkGray,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
     color: colors.darkGray,
   },
 })

@@ -1,5 +1,4 @@
 import * as React from 'react';
-import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import { OrderListStackScreen, ProfileStackScreen} from './StackNavigator';
@@ -20,7 +19,14 @@ function BottomTabNavigator() {
     >
       {/* Orders */}
       <Tab.Screen name="OrderListStackScreen" component={OrderListStackScreen}
-        options={() => ({
+        options={({route}) => ({
+          tabBarStyle: {
+            display: getFocusedRouteNameFromRoute(route) === 'OrderDetailScreen' ? 'none' : 'flex',
+            height: 70,
+            backgroundColor: '#FAFAFA',
+            borderTopWidth: 1,
+            borderTopColor: '#E0E0E0',
+          },
           tabBarIcon: ({ focused }) => (
             <View style={styles.menuItem}>
               <Image

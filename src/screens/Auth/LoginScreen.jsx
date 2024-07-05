@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Image, Text, TextInput, Alert, ImageBackground, StyleSheet, KeyboardAvoidingView, Platform, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Image, Text, TextInput, Alert, ImageBackground, StyleSheet, KeyboardAvoidingView, StatusBar, TouchableOpacity, ActivityIndicator } from 'react-native';
 import auth from '@react-native-firebase/auth';
 import { login } from '../../redux/slices/authenticationSlice';
 import colors from 'constants/colors'; 
@@ -76,6 +76,7 @@ const LoginScreen = ({ navigation }) => {
       behavior="height"
       style={styles.container}
     >
+      <StatusBar translucent backgroundColor="transparent" />
       <ImageBackground
         source={require('images/main.png')}
         style={styles.backgroundImage}

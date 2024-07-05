@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, KeyboardAvoidingView, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, KeyboardAvoidingView, TouchableOpacity, Image, StatusBar } from 'react-native';
 import colors from 'constants/colors';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import changeNavigationBarColor from 'react-native-navigation-bar-color';
@@ -12,6 +12,7 @@ const Layout = ({ children, navigation, backTitle, title, dynamicTitle, headerRi
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0}
     >
+      <StatusBar barStyle="dark-content" backgroundColor="white" />
       <SafeAreaView style={styles.container}>
         <View style={styles.headerContainer}>
           {backTitle ?

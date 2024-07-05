@@ -143,7 +143,7 @@ function App() {
 
   return (
     <>
-      <StatusBar backgroundColor="transparent" translucent={true} />
+      {/* <StatusBar backgroundColor="white"/> */}
       {isAuthenticated ? <BottomTabNavigator /> : <AuthStackNavigator />}
     </>
   );
@@ -153,10 +153,10 @@ function Root() {
   return (
     <NavigationContainer
       ref={navigationRef}
-      onReady={() => {
-        console.log('Navigation is ready');
-        setNavigationReady();
-      }}
+      // onReady={() => {
+      //   console.log('Navigation is ready');
+      //   setNavigationReady();
+      // }}
     >
       <App />
       <NotificationHandler />

@@ -3,6 +3,8 @@ import { StyleSheet } from 'react-native';
 import { createStackNavigator, TransitionPresets } from '@react-navigation/stack';
 
 import OrderListScreen from 'screens/OrderListScreen';
+import OrderDetailScreen from 'screens/OrderListScreen/OrderDetailScreen';
+
 import ProfileScreen from 'screens/ProfileScreen';
 import SettingsScreen from 'screens/ProfileScreen/SettingsScreen';
 
@@ -24,7 +26,12 @@ export const OrderListStackScreen = () => (
         <OrderListStack.Screen
             name="OrderListScreen"
             component={OrderListScreen}
-            options={{ title: 'Orders' }}
+            options={{ headerShown: false }}
+        />
+        <OrderListStack.Screen
+            name="OrderDetailScreen"
+            component={OrderDetailScreen}
+            options={{ headerShown: false }}
         />
     </OrderListStack.Navigator>
 );
