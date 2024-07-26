@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, StatusBar, Alert, ActivityIndicator } from 'react-native';
+import { View, Alert, ActivityIndicator } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { AuthStackNavigator } from './navigation/AuthStackNavigator';
 import BottomTabNavigator from './navigation/BottomTabNavigator';
@@ -38,24 +38,33 @@ function NotificationHandler() {
     console.log('Setting up notification handlers...');
 
     const unsubscribe = messaging().onMessage(async remoteMessage => {
-      console.log('Notification received in the foreground:', remoteMessage);
-      const { screen, orderId } = remoteMessage.data;
+      console.log('Notification received in the foreground:', remoteMessage)
+      const { screen, orderId } = remoteMessage.data
       Alert.alert(
-        'New Order Assigned',
+        'New Order',
         'You have been assigned a new order',
-        [{
-          text: 'View', onPress: () => {
-            console.log('Navigating to:', screen, orderId);
-            if (screen && orderId) {
-              navigate('OrderListStackScreen', {
-                screen: 'OrderListScreen',
-                params: { orderId }
-              });
-            }
-          }
-        }]
-      );
-    });
+        [
+          {
+            text: 'Cancel',
+            onPress: () => console.log('Cancel Pressed'),
+            style: 'cancel',
+          },
+          {
+            text: 'View',
+            onPress: () => {
+              console.log('Navigating to:', screen, orderId)
+              if (screen && orderId) {
+                navigate('OrderListStackScreen', {
+                  screen: 'OrderDetailScreen',
+                  params: { orderId },
+                })
+              }
+            },
+          },
+        ]
+      )
+    })
+    
 
     messaging().setBackgroundMessageHandler(async remoteMessage => {
       console.log('Message handled in the background:', remoteMessage);
@@ -63,7 +72,7 @@ function NotificationHandler() {
       if (screen && orderId) {
         console.log('Navigating to:', screen, orderId);
         navigate('OrderListStackScreen', {
-          screen: 'OrderListScreen',
+          screen: 'OrderDetailScreen',
           params: { orderId }
         });
       }
@@ -75,7 +84,7 @@ function NotificationHandler() {
       if (screen && orderId) {
         console.log('Navigating to:', screen, orderId);
         navigate('OrderListStackScreen', {
-          screen: 'OrderListScreen',
+          screen: 'OrderDetailScreen',
           params: { orderId }
         });
       }
@@ -88,7 +97,7 @@ function NotificationHandler() {
         if (screen && orderId) {
           console.log('Navigating to:', screen, orderId);
           navigate('OrderListStackScreen', {
-            screen: 'OrderListScreen',
+            screen: 'OrderDetailScreen',
             params: { orderId }
           });
         }

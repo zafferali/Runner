@@ -5,9 +5,9 @@ import { GlobalStyles } from 'constants/GlobalStyles'
 const CustomCard = ({ isLightText, text, textColor, secondRowText, icon }) => {
   return (
     <View style={[GlobalStyles.lightGrayCard, styles.container]}>
-      <View style={styles.iconContainer}>
-        <Image style={styles.mapIcon} source={require('images/map.png')}/>
-      </View>
+      {icon && <View style={styles.iconContainer}>
+        <Image style={styles.mapIcon} source={icon}/>
+      </View>}
       <View>
       <Text style={[isLightText ? { color: 'rgba(0,0,0,0.5)' } : { color: textColor? textColor : 'black' }, styles.text]}>{text}</Text>
         {secondRowText && <Text style={styles.secondRowText}>{secondRowText}</Text>}

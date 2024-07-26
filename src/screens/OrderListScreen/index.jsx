@@ -6,7 +6,7 @@ import colors from 'constants/colors'
 import { useSelector } from 'react-redux'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 
-const subtractMinutes = (time, minutes) => {
+export const subtractMinutes = (time, minutes) => {
   const [hours, mins] = time.split(':').map(Number)
   const totalMinutes = hours * 60 + mins - minutes
   const newHours = Math.floor(totalMinutes / 60)
@@ -22,6 +22,7 @@ const OrderListScreen = ({ navigation }) => {
   const [activeTab, setActiveTab] = useState('Active')
   const [openedOrders, setOpenedOrders] = useState([])
   const [isLoading, setIsLoading] = useState(true)
+  const [isFetchingAdditionalDetails, setIsFetchingAdditionalDetails] = useState(false)
   const runnerId = useSelector(state => state.authentication.runnerId)
 
   const flatListRef = useRef(null)
@@ -60,36 +61,29 @@ const OrderListScreen = ({ navigation }) => {
       setIsLoading(false)
       return () => {}
     }
-
+  
     const runnerRef = firestore().doc(`runners/${runnerId}`)
-
+  
     return firestore()
       .collection('orders')
       .where('runner', '==', runnerRef)
-      .onSnapshot(async (querySnapshot) => {
-        const ordersList = []
-        for (const doc of querySnapshot.docs) {
-          const data = doc.data()
-          const restaurantDoc = data.restaurant ? await data.restaurant.get() : null
-          const customerDoc = data.customer ? await data.customer.get() : null
-          const lockerDoc = data.locker ? await data.locker.get() : null
-
-          ordersList.push({
-            id: doc.id,
-            orderNum: data?.orderNum,
-            pickupCode: data?.pickupCode,
-            orderStatus: data?.orderStatus,
-            deliveryTime: data?.deliveryTime,
-            restaurantName: restaurantDoc?.data()?.name,
-            customerName: customerDoc?.data()?.name,
-            campusName: lockerDoc?.data()?.campus,
-            lockerName: lockerDoc?.data()?.lockerName,
-            items: data?.items,
-            instructions: data?.instructions
-          })
-        }
+      .onSnapshot((querySnapshot) => {
+        const ordersList = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          orderNum: doc.data()?.orderNum,
+          pickupCode: doc.data()?.pickupCode,
+          orderStatus: doc.data()?.orderStatus,
+          deliveryTime: doc.data()?.deliveryTime,
+          restaurantName: doc.data()?.restaurantName,
+          branchName: doc.data()?.branchName,
+          customer: doc.data()?.customer,
+          locker: doc.data()?.locker,
+          items: doc.data()?.items,
+          instructions: doc.data()?.instructions
+        }))
         ordersList.sort((a, b) => a.deliveryTime.localeCompare(b.deliveryTime))
         setOrdersData(ordersList)
+        fetchAdditionalDetails(ordersList)
         setIsLoading(false)
       }, error => {
         console.error('Error fetching orders:', error)
@@ -97,25 +91,46 @@ const OrderListScreen = ({ navigation }) => {
       })
   }
 
+  const fetchAdditionalDetails = async (ordersList) => {
+    setIsFetchingAdditionalDetails(true)
+    const updatedOrders = await Promise.all(ordersList.map(async (order) => {
+      const customerDoc = order.customer ? await order.customer.get() : null
+      const lockerDoc = order.locker ? await order.locker.get() : null
+
+      return {
+        ...order,
+        customerName: customerDoc?.data()?.name,
+        campusName: lockerDoc?.data()?.campus,
+        lockerName: lockerDoc?.data()?.lockerName
+      }
+    }))
+    setOrdersData(updatedOrders)
+    setIsFetchingAdditionalDetails(false)
+  }
+
   const filterOrders = (orders, tab) => {
     const activeStatuses = ['received', 'ready', 'on the way', 'picked', 'delivered']
     const pastStatuses = ['completed', 'cancelled']
-
+  
     const upcoming = orders.filter(order => 
       !openedOrders.includes(order.id) && activeStatuses.includes(order.orderStatus)
     )
     setUpcomingOrders(upcoming)
-
-    let filtered = orders.filter(order => 
-      tab === 'Active' ? activeStatuses.includes(order.orderStatus) : pastStatuses.includes(order.orderStatus)
+  
+    const activeOrders = orders.filter(order => 
+      activeStatuses.includes(order.orderStatus) && openedOrders.includes(order.id)
     )
-
-    filtered = filtered.filter(order => openedOrders.includes(order.id))
+  
+    const pastOrders = orders.filter(order => 
+      pastStatuses.includes(order.orderStatus)
+    )
+  
+    const filtered = tab === 'Active' ? activeOrders : pastOrders
     filtered.sort((a, b) => a.deliveryTime.localeCompare(b.deliveryTime))
-
+  
     setFilteredOrders(filtered)
   }
-
+  
   const handleSearch = (query) => {
     setSearchQuery(query)
     if (query === '') {
@@ -123,9 +138,9 @@ const OrderListScreen = ({ navigation }) => {
     } else {
       const lowerCaseQuery = query.toLowerCase()
       const filtered = [...upcomingOrders, ...filteredOrders].filter(order => 
-        order.restaurantName.toLowerCase().includes(lowerCaseQuery) ||
+        order.restaurantName?.toLowerCase().includes(lowerCaseQuery) ||
         order.orderNum.toString().includes(lowerCaseQuery) ||
-        order.customerName.toLowerCase().includes(lowerCaseQuery)
+        order.customerName?.toLowerCase().includes(lowerCaseQuery)
       )
       setFilteredOrders(filtered)
     }
@@ -137,7 +152,7 @@ const OrderListScreen = ({ navigation }) => {
       setOpenedOrders(updatedOpenedOrders)
       saveOpenedOrders(updatedOpenedOrders)
     }
-    navigation.navigate('OrderDetailScreen', { order: item })
+    navigation.navigate('OrderDetailScreen', { orderId: item.id })
   }
 
   const renderContent = () => {
@@ -166,8 +181,8 @@ const OrderListScreen = ({ navigation }) => {
           renderItem={({ item }) => (
             <TouchableOpacity style={styles.orderContainer} onPress={() => handleOrderPress(item)}>
               <View style={styles.leftSection}>
-                <Text style={styles.lgText}>{item.customerName}</Text>
-                <Text style={[styles.mdText, {color: colors.theme}]}>{item.restaurantName}</Text>
+                <Text style={styles.lgText}>{item.restaurantName}{item.branchName && `, ${item.branchName}`}</Text>
+                <Text style={[styles.mdText, {color: colors.theme}]}>Order #{item.orderNum}</Text>
                 <Text style={styles.deliveryTime}>Deliver to locker before <Text style={styles.time}>{subtractMinutes(item.deliveryTime, 15)}</Text></Text>
               </View>
               <View style={styles.rightSection}>
@@ -183,27 +198,14 @@ const OrderListScreen = ({ navigation }) => {
 
   return (
     <Layout navigation={navigation} title='Live Orders'>
-      {/* <View style={styles.searchBarContainer}> 
-        <Image
-          source={require('images/search.png')}
-          style={styles.icon}
-        />
-        <TextInput
-          style={styles.searchBar}
-          placeholder='Search orders...'
-          value={searchQuery}
-          onChangeText={handleSearch}
-        />
-      </View> */}
-     
       {upcomingOrders.length > 0 && (
         <View style={styles.upcomingSection}>
           <Text style={styles.sectionHeaderText}>New order(s)</Text>
-          <ScrollView style={{minheight: 100, maxHeight: 220}}>
+          <ScrollView style={{minHeight: 100, maxHeight: 220}}>
             {upcomingOrders.map(order => (
               <View key={order.id} style={styles.upcomingOrderContainer}>
-                <Text style={styles.lgText}>{order.customerName}</Text>
-                <Text style={[styles.mdText, {color: colors.theme}]}>{order.restaurantName}</Text>
+                <Text style={styles.lgText}>{order.restaurantName}{order.branchName && `, ${order.branchName}`}</Text>
+                <Text style={[styles.mdText, {color: colors.theme}]}>Order #{order.orderNum}</Text>
                 <Text style={styles.deliveryTime}>Deliver to locker before <Text style={styles.time}>{subtractMinutes(order.deliveryTime, 15)}</Text></Text>
                 <TouchableOpacity 
                   style={styles.moreDetailsButton}
@@ -231,13 +233,20 @@ const OrderListScreen = ({ navigation }) => {
           <Text style={[styles.tabText, activeTab === 'Past' && styles.activeTabText]}>Past</Text>
         </TouchableOpacity>
       </View>
-  
+
+      {isFetchingAdditionalDetails && (
+        <View style={styles.loadingAdditionalDetailsContainer}>
+          <ActivityIndicator size="small" color={colors.theme} />
+          <Text style={styles.loadingAdditionalDetailsText}>Fetching additional order details...</Text>
+        </View>
+      )}
       {renderContent()}
     </Layout>
   )
 }
 
 export default OrderListScreen
+
 
 const styles = StyleSheet.create({
   upcomingSection: {
@@ -425,6 +434,17 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 10,
     fontSize: 16,
+    color: colors.darkGray,
+  },
+  loadingAdditionalDetailsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  loadingAdditionalDetailsText: {
+    marginLeft: 10,
+    fontSize: 14,
     color: colors.darkGray,
   },
 })

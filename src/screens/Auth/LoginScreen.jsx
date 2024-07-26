@@ -68,9 +68,6 @@ const LoginScreen = ({ navigation }) => {
     }
   }
 
-  
-
-
   return (
     <KeyboardAvoidingView
       behavior="height"
