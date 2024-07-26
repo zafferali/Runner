@@ -14,6 +14,7 @@ module.exports = {
           constants: './src/constants',
           globals: './src/globals',
           utils: './src/utils',
+          slices: './src/redux/slices'
         },
         extensions: ['.ios.js', '.android.js', '.js', '.ts', '.tsx', '.json'],
       },

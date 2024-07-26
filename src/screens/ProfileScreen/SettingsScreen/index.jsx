@@ -1,76 +1,113 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, Image } from 'react-native';
-import { launchImageLibrary } from 'react-native-image-picker';
-import colors from '../../../constants/colors';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, Image, Alert, ActivityIndicator } from 'react-native';
+import colors from 'constants/colors';
+import Layout from 'common/Layout';
+import { toggleLoading } from 'slices/uiSlice';
+import { useSelector, useDispatch } from 'react-redux';
+import { updateUser } from 'slices/userSlice';
+import UploadImageModal from 'utils/UploadImageModal';
+import uploadImageToFirebase from 'utils/uploadImage';
+import firestore from '@react-native-firebase/firestore';
+import CustomButton from 'common/CustomButton';
 
-const ProfileEditScreen = () => {
-  const [name, setName] = useState('Kanchana Naidu'); // Initial name
-  const [profileImage, setProfileImage] = useState(null); // Initial image state
+const SettingsScreen = ({navigation}) => {
+  const [name, setName] = useState('');
+  const runnerId = useSelector(state => state.authentication.runnerId);
+  const [imageUrl, setImageUrl] = useState(null);
+  const isLoading = useSelector(state => state.ui.loading);
+  const user = useSelector(state => state.user);
+  const dispatch = useDispatch();
+  const [modalVisible, setModalVisible] = useState(false);
 
-  // Function to handle name change
+  useEffect(() => {
+    if (user) {
+      setName(user.name);
+      setImageUrl(user.photoUrl);
+    }
+  }, [user]);
+
   const handleNameChange = (text) => {
     setName(text);
   };
 
-  // Function to handle profile image upload
-  const handleProfileImagePick = () => {
-    launchImageLibrary({ mediaType: 'photo' }, (response) => {
-      if (response.didCancel) {
-        console.log('User cancelled image picker');
-      } else if (response.error) {
-        console.log('Image picker error: ', response.error);
-      } else {
-        let imageUri = response.uri || response.assets?.[0]?.uri;
-        setProfileImage(imageUri);
-      }
-    });
+  const handleSave = async () => {
+    dispatch(toggleLoading());
+    try {
+      const userRef = firestore().collection('runners').doc(runnerId);
+      const updatedUserInfo = { name, photoUrl: imageUrl };
+      await userRef.update(updatedUserInfo);
+      dispatch(updateUser({ ...user, ...updatedUserInfo }));
+      navigation.goBack()
+    } catch (error) {
+      Alert.alert('Failed to update profile', error.message);
+    } finally {
+      dispatch(toggleLoading());
+    }
   };
 
-  // Function to save the updated name and image
-  const handleSave = () => {
-    // Implement save functionality
-    console.log('Name:', name);
-    if (profileImage) {
-      console.log('Profile image has been set');
-      // Implement functionality to upload the image to the server
+  const handleUploadImage = async (fromCamera) => {
+    dispatch(toggleLoading());
+    try { 
+      const url = await uploadImageToFirebase(fromCamera);
+      setImageUrl(url);
+      setModalVisible(false);
+    } catch (error) {
+      console.log(error)
+    } finally {
+      dispatch(toggleLoading());
     }
-    // Display a success message or navigate the user away from the profile edit screen
   };
 
   return (
-    <View style={styles.container}>
-      <TouchableOpacity style={styles.imageUploadContainer} onPress={handleProfileImagePick}>
-        {profileImage ? (
-          <Image source={{ uri: profileImage.uri }} style={styles.profileImage} />
-        ) : (
-          <Image style={styles.uploadIcon} source={require('images/upload.png')} />
-        )}
-      </TouchableOpacity>
+    <>
+    <Layout
+      backTitle='Settings'
+      navigation={navigation}
+    >
+      <View style={styles.container}>
+        <TouchableOpacity style={[styles.imageUploadContainer, imageUrl && {borderWidth: 0}]} onPress={() => setModalVisible(true)}>
+          { imageUrl ? (
+            <Image source={{ uri: imageUrl }} style={styles.profileImage} />
+          ) : null
+          // (<Image style={styles.uploadIcon} source={require('images/upload.png')} />)
+          }
+        </TouchableOpacity>
+        <Text style={styles.label}>Name</Text>
+        <TextInput
+          style={styles.input}
+          value={name}
+          onChangeText={handleNameChange}
+        />
 
-      <Text style={styles.label}>Name</Text>
-      <TextInput
-        style={styles.input}
-        value={name}
-        onChangeText={handleNameChange}
-      />
-
-      <Text style={styles.label}>Phone Number</Text>
-      <View style={styles.phoneNum}>
-        <Text style={styles.phoneNumText}>9894565342</Text>
+        <Text style={styles.label}>Phone Number</Text>
+        <View style={styles.phoneNum}>
+          <Text style={styles.phoneNumText}>{user?.mobile}</Text>
+        </View>
+        <CustomButton title='Save Changes' onPress={handleSave} style={{ width: '100%', marginTop: 20}} />
       </View>
-
-      {/* <TouchableOpacity style={styles.button} onPress={handleSave}>
-        <Text style={styles.buttonText}>Save Changes</Text>
-      </TouchableOpacity> */}
-    </View>
+      {!isLoading &&
+      <UploadImageModal
+        visible={modalVisible}
+        onClose={() => setModalVisible(false)}
+        onTakePicture={() => handleUploadImage(true)}
+        onUploadFromGallery={() => handleUploadImage(false)}
+      />}
+    </Layout>
+     {isLoading ? (
+      <View style={styles.overlayStyle}>
+        <ActivityIndicator size='large' color={colors.theme} />
+      </View>) : null}
+      </>
   );
 };
+
+export default SettingsScreen;
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     alignItems: 'center',
-    paddingTop: 60,
+    paddingTop: 100,
     paddingHorizontal: 40,
     backgroundColor: 'white',
   },
@@ -134,6 +171,13 @@ const styles = StyleSheet.create({
   buttonText: {
     color: 'white',
   },
+   overlayStyle: {
+    position: 'absolute',
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 2,
+  },
 });
-
-export default ProfileEditScreen;

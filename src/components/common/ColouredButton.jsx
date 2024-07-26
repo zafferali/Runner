@@ -4,7 +4,7 @@ import colors from 'constants/colors';
 
 const ColouredButton = ({ onPress, title, style, textStyle, icon, textColor, bgColor }) => (
   <TouchableOpacity onPress={onPress} style={[styles.button, style, { backgroundColor: bgColor }]}>
-    {icon && <Image source={require('images/phone.png')} style={styles.icon} />}
+    {icon && <Image source={icon} style={styles.icon} />}
     <Text style={[styles.text, { color: textColor }]}>{title}</Text>
   </TouchableOpacity>
 );

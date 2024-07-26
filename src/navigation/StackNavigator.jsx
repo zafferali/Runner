@@ -3,6 +3,8 @@ import { StyleSheet } from 'react-native';
 import { createStackNavigator, TransitionPresets } from '@react-navigation/stack';
 
 import OrderListScreen from 'screens/OrderListScreen';
+import OrderDetailScreen from 'screens/OrderListScreen/OrderDetailScreen';
+
 import ProfileScreen from 'screens/ProfileScreen';
 import SettingsScreen from 'screens/ProfileScreen/SettingsScreen';
 
@@ -24,7 +26,12 @@ export const OrderListStackScreen = () => (
         <OrderListStack.Screen
             name="OrderListScreen"
             component={OrderListScreen}
-            options={{ title: 'Orders' }}
+            options={{ headerShown: false }}
+        />
+        <OrderListStack.Screen
+            name="OrderDetailScreen"
+            component={OrderDetailScreen}
+            options={{ headerShown: false }}
         />
     </OrderListStack.Navigator>
 );
@@ -33,7 +40,6 @@ export const OrderListStackScreen = () => (
 export const ProfileStackScreen = () => (
     <ProfileStack.Navigator
         screenOptions={{
-            headerTitleStyle: styles.headerTitle,
             gestureEnabled: true, // Enable gesture navigation
             ...TransitionPresets.SlideFromRightIOS,
         }}
@@ -46,7 +52,7 @@ export const ProfileStackScreen = () => (
         <ProfileStack.Screen
             name="SettingsScreen"
             component={SettingsScreen}
-            options={{ title: 'Settings', headerTitleStyle: styles.headerSmallTitle }}
+            options={{ headerShown: false }}
         />
     </ProfileStack.Navigator>
 );

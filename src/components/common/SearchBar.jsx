@@ -19,6 +19,7 @@ const SearchBar = ({ placeholder, onSearch }) => {
       <TextInput
         ref={inputRef}
         onChangeText={onSearch}
+        placeholderTextColor='#666666'
         placeholder={placeholder}
         style={styles.input}
         clearButtonMode="while-editing" // iOS only
@@ -37,6 +38,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderWidth: 1,
     marginTop: 10,
+    marginBottom: 16,
   },
   iconContainer: {
     marginRight: 10,

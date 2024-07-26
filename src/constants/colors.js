@@ -1,9 +1,10 @@
 export default {
     theme: '#2E5E82',
-    text: 'black',
+    themeLight: 'rgba(104, 141, 168, 0.15)',
+    selectedLightBg: '#F6F6F6',
+    bgLight: 'rgba(0,0,0,0.25)',
     border: '#E6E6E6',
     textLight: '#A6A6A6',
-    bgLight: '#688DA8',
     bgExtraLight: '#F3F3F3',
     warning: '#FF94944A',
     warningText: '#FF9494',

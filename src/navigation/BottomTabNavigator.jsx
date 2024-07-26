@@ -1,5 +1,4 @@
 import * as React from 'react';
-import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import { OrderListStackScreen, ProfileStackScreen} from './StackNavigator';
@@ -9,6 +8,7 @@ import colors from '../constants/colors';
 const Tab = createBottomTabNavigator();
 
 function BottomTabNavigator() {
+
   return (
     <Tab.Navigator
       screenOptions={{
@@ -19,11 +19,14 @@ function BottomTabNavigator() {
     >
       {/* Orders */}
       <Tab.Screen name="OrderListStackScreen" component={OrderListStackScreen}
-        options={({ route }) => ({
-          // tabBarStyle: {
-          //   display: getFocusedRouteNameFromRoute(route) === 'OrderStatusScreen' ? 'none' : 'flex',
-          //   height: 80,
-          // },
+        options={({route}) => ({
+          tabBarStyle: {
+            display: getFocusedRouteNameFromRoute(route) === 'OrderDetailScreen' ? 'none' : 'flex',
+            height: 70,
+            backgroundColor: '#FAFAFA',
+            borderTopWidth: 1,
+            borderTopColor: '#E0E0E0',
+          },
           tabBarIcon: ({ focused }) => (
             <View style={styles.menuItem}>
               <Image
@@ -37,8 +40,8 @@ function BottomTabNavigator() {
       />
 
       {/* Profile */}
-      <Tab.Screen name="ProfileStackScreen" component={ProfileStackScreen}
-        options={({ route }) => ({
+      <Tab.Screen name="Profile" component={ProfileStackScreen}
+        options={({ route}) => ({
           tabBarStyle: {
             display: getFocusedRouteNameFromRoute(route) === 'SettingsScreen' ? 'none' : 'flex',
             height: 70,
@@ -52,7 +55,7 @@ function BottomTabNavigator() {
                 source={require('images/user-icon.png')}
                 resizeMode='contain'
                 style={[styles.menuIcon, { tintColor: focused ? colors.theme : colors.textLight }]} />
-              <Text style={[styles.menuText, { color: focused ? colors.theme : colors.textLight }]}>Orders</Text>
+              <Text style={[styles.menuText, { color: focused ? colors.theme : colors.textLight }]}>Profile</Text>
             </View>
           )
         })}
@@ -83,5 +86,6 @@ const styles = StyleSheet.create({
 });
 
 export default BottomTabNavigator;
+
 
 
