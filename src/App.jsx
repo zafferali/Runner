@@ -1,22 +1,29 @@
-import React, { useEffect } from 'react';
-import { View, Alert, ActivityIndicator } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
-import { AuthStackNavigator } from './navigation/AuthStackNavigator';
+import React, {useEffect} from 'react';
+import {View, Alert, ActivityIndicator} from 'react-native';
+import {NavigationContainer} from '@react-navigation/native';
+import {AuthStackNavigator} from './navigation/AuthStackNavigator';
 import BottomTabNavigator from './navigation/BottomTabNavigator';
-import { requestNotificationPermission, promptForSettings } from './utils/permissions';
-import { registerDeviceToken } from './notification/notification';
-import { useDispatch, useSelector } from 'react-redux';
+import {
+  requestNotificationPermission,
+  promptForSettings,
+} from './utils/permissions';
+import {registerDeviceToken} from './notification/notification';
+import {useDispatch, useSelector} from 'react-redux';
 import messaging from '@react-native-firebase/messaging';
-import { navigate } from './navigation/navigationService';
-import { navigationRef, setNavigationReady } from './navigation/navigationService';
+import {navigate} from './navigation/navigationService';
+import {
+  navigationRef,
+  setNavigationReady,
+} from './navigation/navigationService';
 import auth from '@react-native-firebase/auth';
-import { setAuthenticated } from 'slices/authenticationSlice';
-import { updateUser } from 'slices/userSlice';
+import {setAuthenticated} from 'slices/authenticationSlice';
+import {updateUser} from 'slices/userSlice';
 import firestore from '@react-native-firebase/firestore';
 import colors from 'constants/colors';
+import LocationTracker from './utils/LocationTracker';
 
 function NotificationHandler() {
-  const { isAuthenticated } = useSelector(state => state.authentication);
+  const {isAuthenticated} = useSelector(state => state.authentication);
 
   useEffect(() => {
     const initNotificationService = async () => {
@@ -38,104 +45,128 @@ function NotificationHandler() {
     console.log('Setting up notification handlers...');
 
     const unsubscribe = messaging().onMessage(async remoteMessage => {
-      console.log('Notification received in the foreground:', remoteMessage)
-      const { screen, orderId } = remoteMessage.data
-      Alert.alert(
-        'New Order',
-        'You have been assigned a new order',
-        [
-          {
-            text: 'Cancel',
-            onPress: () => console.log('Cancel Pressed'),
-            style: 'cancel',
+      console.log('Notification received in the foreground:', remoteMessage);
+      const {screen, orderId} = remoteMessage.data;
+      Alert.alert('New Order', 'You have been assigned a new order', [
+        {
+          text: 'Cancel',
+          onPress: () => console.log('Cancel Pressed'),
+          style: 'cancel',
+        },
+        {
+          text: 'View',
+          onPress: () => {
+            console.log('Navigating to:', screen, orderId);
+            if (screen && orderId) {
+              navigate('OrderListStackScreen', {
+                screen: 'OrderDetailScreen',
+                params: {orderId},
+              });
+            }
           },
-          {
-            text: 'View',
-            onPress: () => {
-              console.log('Navigating to:', screen, orderId)
-              if (screen && orderId) {
-                navigate('OrderListStackScreen', {
-                  screen: 'OrderDetailScreen',
-                  params: { orderId },
-                })
-              }
-            },
-          },
-        ]
-      )
-    })
-    
+        },
+      ]);
+    });
 
     messaging().setBackgroundMessageHandler(async remoteMessage => {
       console.log('Message handled in the background:', remoteMessage);
-      const { screen, orderId } = remoteMessage.data;
+      const {screen, orderId} = remoteMessage.data;
       if (screen && orderId) {
         console.log('Navigating to:', screen, orderId);
         navigate('OrderListStackScreen', {
           screen: 'OrderDetailScreen',
-          params: { orderId }
+          params: {orderId},
         });
       }
     });
 
     messaging().onNotificationOpenedApp(remoteMessage => {
-      console.log('Notification caused app to open from background state:', remoteMessage);
-      const { screen, orderId } = remoteMessage.data;
+      console.log(
+        'Notification caused app to open from background state:',
+        remoteMessage,
+      );
+      const {screen, orderId} = remoteMessage.data;
       if (screen && orderId) {
         console.log('Navigating to:', screen, orderId);
         navigate('OrderListStackScreen', {
           screen: 'OrderDetailScreen',
-          params: { orderId }
+          params: {orderId},
         });
       }
     });
 
-    messaging().getInitialNotification().then(remoteMessage => {
-      if (remoteMessage) {
-        console.log('Notification caused app to open from quit state:', remoteMessage);
-        const { screen, orderId } = remoteMessage.data;
-        if (screen && orderId) {
-          console.log('Navigating to:', screen, orderId);
-          navigate('OrderListStackScreen', {
-            screen: 'OrderDetailScreen',
-            params: { orderId }
-          });
+    messaging()
+      .getInitialNotification()
+      .then(remoteMessage => {
+        if (remoteMessage) {
+          console.log(
+            'Notification caused app to open from quit state:',
+            remoteMessage,
+          );
+          const {screen, orderId} = remoteMessage.data;
+          if (screen && orderId) {
+            console.log('Navigating to:', screen, orderId);
+            navigate('OrderListStackScreen', {
+              screen: 'OrderDetailScreen',
+              params: {orderId},
+            });
+          }
         }
-      }
-    });
+      });
 
     return () => {
       console.log('Cleaning up notification handlers...');
-      unsubscribe(); // Clean up the foreground notification listener when the component unmounts
+      unsubscribe();
     };
   }, []);
 
-  return null; // This component does not render anything
+  return null;
 }
 
 function App() {
-  const { isAuthenticated, loading } = useSelector(state => state.authentication)
+  const {isAuthenticated, loading} = useSelector(state => state.authentication);
   const dispatch = useDispatch();
+  const runnerId = useSelector(state => state.authentication.runnerId);
+  console.log('runnerID is', runnerId);
+
+  useEffect(() => {
+    if (isAuthenticated && runnerId) {
+      LocationTracker.configureBackgroundGeolocation(runnerId);
+    } else if (!isAuthenticated || !runnerId) {
+      LocationTracker.cleanup();
+    }
+
+    return () => {
+      LocationTracker.cleanup();
+    };
+  }, [isAuthenticated, runnerId]);
 
   useEffect(() => {
     const unsubscribe = auth().onAuthStateChanged(async user => {
       if (user) {
-        const runnerDoc = await firestore().collection('runners').doc(user.uid).get();
+        const runnerDoc = await firestore()
+          .collection('runners')
+          .doc(user.uid)
+          .get();
         if (runnerDoc.exists) {
           const runnerData = runnerDoc.data();
-          dispatch(setAuthenticated({ runnerId: user.uid, isAuthenticated: true }));
-          dispatch(updateUser({
-            name: runnerData.name,
-            email: runnerData.email,
-            mobile: runnerData.mobile,
-            photoUrl: runnerData.photoUrl,
-            isActive: runnerData.isActive,
-          }))
+          dispatch(
+            setAuthenticated({runnerId: user.uid, isAuthenticated: true}),
+          );
+          dispatch(
+            updateUser({
+              name: runnerData.name,
+              email: runnerData.email,
+              mobile: runnerData.mobile,
+              photoUrl: runnerData.photoUrl,
+              isActive: runnerData.isActive,
+            }),
+          );
         } else {
-          dispatch(setAuthenticated({ runnerId: null, isAuthenticated: false }));
+          dispatch(setAuthenticated({runnerId: null, isAuthenticated: false}));
         }
       } else {
-        dispatch(setAuthenticated({ runnerId: null, isAuthenticated: false }));
+        dispatch(setAuthenticated({runnerId: null, isAuthenticated: false}));
       }
     });
 
@@ -144,7 +175,7 @@ function App() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+      <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
         <ActivityIndicator size="large" color={colors.theme} />
       </View>
     );
