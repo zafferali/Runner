@@ -1,83 +1,99 @@
-import React, { useState } from 'react';
-import { View, Image, Text, TextInput, Alert, ImageBackground, StyleSheet, KeyboardAvoidingView, StatusBar, TouchableOpacity, ActivityIndicator } from 'react-native';
+import React, {useState} from 'react';
+import {
+  View,
+  Image,
+  Text,
+  TextInput,
+  Alert,
+  ImageBackground,
+  StyleSheet,
+  KeyboardAvoidingView,
+  StatusBar,
+  TouchableOpacity,
+  ActivityIndicator,
+} from 'react-native';
 import auth from '@react-native-firebase/auth';
-import { login } from '../../redux/slices/authenticationSlice';
-import colors from 'constants/colors'; 
-import { useSelector, useDispatch } from 'react-redux'
+import {login} from '../../redux/slices/authenticationSlice';
+import colors from 'constants/colors';
+import {useSelector, useDispatch} from 'react-redux';
 import changeNavigationBarColor from 'react-native-navigation-bar-color';
-import { toggleLoading } from 'slices/uiSlice';
+import {toggleLoading} from 'slices/uiSlice';
 import firestore from '@react-native-firebase/firestore';
-import { updateUser } from 'slices/userSlice';
+import {updateUser} from 'slices/userSlice';
 
-
-
-
-const LoginScreen = ({ navigation }) => {
+const LoginScreen = ({navigation}) => {
   changeNavigationBarColor(colors.theme, true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const dispatch = useDispatch()
-  const isLoading = useSelector(state => state.ui.loading)
-  const [focus, setFocus] = useState(false)
+  const dispatch = useDispatch();
+  const isLoading = useSelector(state => state.ui.loading);
+  const [focus, setFocus] = useState(false);
 
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Error', 'Please enter all fields')
-      return
+      Alert.alert('Error', 'Please enter all fields');
+      return;
     }
 
-    const lowercasedEmail = email.toLowerCase()
-    dispatch(toggleLoading())
+    const lowercasedEmail = email.toLowerCase();
+    dispatch(toggleLoading());
 
     try {
-      console.log('ep', lowercasedEmail, password)
+      console.log('ep', lowercasedEmail, password);
       const runnersQuerySnapshot = await firestore()
         .collection('runners')
         .where('email', '==', lowercasedEmail)
-        .get()
-  
+        .get();
+
       if (runnersQuerySnapshot.empty) {
-        Alert.alert('Error', 'No user found with this email')
-        return
+        Alert.alert('Error', 'No user found with this email');
+        return;
       }
-  
-      let response = await auth().signInWithEmailAndPassword(lowercasedEmail, password)
+
+      let response = await auth().signInWithEmailAndPassword(
+        lowercasedEmail,
+        password,
+      );
       if (response && response.user) {
-        console.log('log', response.user.uid)
-        const runnerDoc = await firestore().collection('runners').doc(response.user.uid).get()
+        console.log('log', response.user.uid);
+        const runnerDoc = await firestore()
+          .collection('runners')
+          .doc(response.user.uid)
+          .get();
         if (runnerDoc.exists) {
-          const runnerData = runnerDoc.data()
-          dispatch(login(response.user.uid))
-          dispatch(updateUser({
-            name: runnerData.name,
-            email: runnerData.email,
-            mobile: runnerData.mobile,
-            photoUrl: runnerData.photoUrl,
-            isActive: runnerData.isActive,
-          }))
+          const runnerData = runnerDoc.data();
+          dispatch(login(response.user.uid));
+          dispatch(
+            updateUser({
+              name: runnerData.name,
+              email: runnerData.email,
+              mobile: runnerData.mobile,
+              photoUrl: runnerData.photoUrl,
+              isActive: runnerData.isActive,
+            }),
+          );
         }
       }
     } catch (e) {
       if (e.code === 'auth/invalid-credential') {
-        Alert.alert('Invalid credentials', 'Please enter correct Email/Password')
+        Alert.alert(
+          'Invalid credentials',
+          'Please enter correct Email/Password',
+        );
       } else {
-        Alert.alert('Error', 'Unknown error')
+        Alert.alert('Error', 'Unknown error');
       }
     } finally {
-      dispatch(toggleLoading())
+      dispatch(toggleLoading());
     }
-  }
+  };
 
   return (
-    <KeyboardAvoidingView
-      behavior="height"
-      style={styles.container}
-    >
+    <KeyboardAvoidingView behavior="height" style={styles.container}>
       <StatusBar translucent backgroundColor="transparent" />
       <ImageBackground
         source={require('images/main.png')}
-        style={styles.backgroundImage}
-      >
+        style={styles.backgroundImage}>
         <View style={styles.topSection}>
           <Image
             source={require('images/logo.png')}
@@ -86,7 +102,7 @@ const LoginScreen = ({ navigation }) => {
           <Text style={styles.subtitle}>Delivery Partner</Text>
         </View>
         <View style={styles.form}>
-        <TextInput
+          <TextInput
             placeholder="Email"
             placeholderTextColor="rgba(255, 255, 255, 0.4)"
             autoCapitalize="none"
@@ -115,15 +131,21 @@ const LoginScreen = ({ navigation }) => {
             <Text style={styles.loginButtonText}>Login</Text>
           </TouchableOpacity>
           <View style={styles.terms}>
-            <Text style={styles.text}>
-              By signing up, you agree to the
-            </Text>
+            <Text style={styles.text}>By signing up, you agree to the</Text>
             <View style={styles.linkContainer}>
-              <Text style={styles.linkText} onPress={() => { /* TODO: Navigate to Terms */ }}>
+              <Text
+                style={styles.linkText}
+                onPress={() => {
+                  /* TODO: Navigate to Terms */
+                }}>
                 Terms & Policy
               </Text>
               <Text style={styles.text}> & </Text>
-              <Text style={styles.linkText} onPress={() => { /* TODO: Navigate to Privacy Policy */ }}>
+              <Text
+                style={styles.linkText}
+                onPress={() => {
+                  /* TODO: Navigate to Privacy Policy */
+                }}>
                 Privacy Policy
               </Text>
             </View>
@@ -131,8 +153,9 @@ const LoginScreen = ({ navigation }) => {
         </View>
         {isLoading ? (
           <View style={styles.overlayStyle}>
-            <ActivityIndicator size='large' color={colors.theme} />
-          </View>) : null}
+            <ActivityIndicator size="large" color={colors.theme} />
+          </View>
+        ) : null}
       </ImageBackground>
     </KeyboardAvoidingView>
   );
@@ -145,7 +168,7 @@ const styles = StyleSheet.create({
   backgroundImage: {
     flex: 1,
     justifyContent: 'center',
-    resizeMode: 'cover'
+    resizeMode: 'cover',
   },
   topSection: {
     flex: 1,

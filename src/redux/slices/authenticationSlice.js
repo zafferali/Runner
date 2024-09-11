@@ -1,4 +1,4 @@
-import { createSlice } from '@reduxjs/toolkit';
+import {createSlice} from '@reduxjs/toolkit';
 
 const initialState = {
   runnerId: null,
@@ -25,11 +25,11 @@ const authenticationSlice = createSlice({
     setAuthenticated(state, action) {
       state.runnerId = action.payload.runnerId;
       state.isAuthenticated = action.payload.isAuthenticated;
-      state.loading = false
+      state.loading = false;
     },
   },
 });
 
-export const { login, logout, setAuthenticated } = authenticationSlice.actions;
+export const {login, logout, setAuthenticated} = authenticationSlice.actions;
 
 export default authenticationSlice.reducer;
